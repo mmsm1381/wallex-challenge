@@ -1,0 +1,16 @@
+[Unit]
+Description=Lagcatcher shadow test (Wallex lag edge, paper trading only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@RUN_USER@
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@APP_DIR@/.venv/bin/python -m lagcatcher run --config @APP_DIR@/config.toml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

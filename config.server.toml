@@ -1,0 +1,14 @@
+# Shadow test on the shared server (Hetzner, outside Iran). OKX and Binance work there.
+# Missing keys use lagcatcher/config.py DEFAULTS (markets, fees, strategies).
+[run]
+out_dir = "data"
+status_every_s = 60.0
+# The disk of this server is almost full, and another trading bot uses it.
+# The lagcatcher files grow about 6 MB per hour. Most growth is other logs.
+min_free_mb_record = 400.0
+min_free_mb_run = 250.0
+
+[venues]
+enabled = ["bybit", "okx", "kucoin", "gate", "binance"]
+max_quote_age_s = 10.0
+min_venues = 2

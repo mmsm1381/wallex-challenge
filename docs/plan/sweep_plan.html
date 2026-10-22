@@ -1,0 +1,553 @@
+<title>Wallex Sweep Catcher Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (~760px) for prose, wider figures up to 1080px; sections run top to bottom as the team will read them. */
+:root {
+  --bg: #f5f6f3;
+  --surface: #ffffff;
+  --ink: #18201c;
+  --muted: #5b655f;
+  --line: #d9ddd6;
+  --accent: #1f6f5c;      /* order-book green, the brand of the plan */
+  --accent-soft: #dcebe5;
+  --bid: #1f8a5b;
+  --ask: #c4473a;
+  --amber: #b9770e;
+  --twin: #7b8580;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --surface: #1a211d; --ink: #e6ebe7; --muted: #9aa69f; --line: #2d3732;
+    --accent: #5cc4a6; --accent-soft: #1f3a31; --bid: #4cc68d; --ask: #ef7a6c; --amber: #e3a948; --twin: #8d9892;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --surface: #1a211d; --ink: #e6ebe7; --muted: #9aa69f; --line: #2d3732;
+  --accent: #5cc4a6; --accent-soft: #1f3a31; --bid: #4cc68d; --ask: #ef7a6c; --amber: #e3a948; --twin: #8d9892;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 56px; }
+.prose { max-width: 760px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.1rem; }
+p { margin: 0; }
+.stack { display: grid; gap: 16px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.mono, td.num, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+header.top { display: grid; gap: 14px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; color: var(--muted); }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.pill.go { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.pill.no { color: var(--ask); }
+.pill.maybe { color: var(--amber); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.9rem; }
+nav.toc a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--line); }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.kpi { background: var(--surface); padding: 16px; display: grid; gap: 2px; align-content: start; }
+.kpi .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi .l { font-size: 0.82rem; color: var(--muted); line-height: 1.35; }
+.kpi.hi .v { color: var(--accent); }
+
+.figure { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.figure .cap { font-size: 0.88rem; color: var(--muted); }
+.scroll { overflow-x: auto; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.grid2 > * { min-width: 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+tr.best td { background: var(--accent-soft); }
+
+svg text { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+svg .axis { stroke: var(--line); }
+svg .grid { stroke: var(--line); stroke-dasharray: 2 4; }
+svg .t-ink { fill: var(--ink); }
+svg .t-acc { fill: var(--accent); }
+svg .t-amb { fill: var(--amber); }
+svg .t-ask { fill: var(--ask); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+.scorebars { display: grid; gap: 6px; }
+.sb { display: grid; grid-template-columns: 170px 1fr 40px; gap: 10px; align-items: center; font-size: 0.88rem; }
+.sb .bar { height: 12px; background: var(--accent-soft); border-radius: 3px; position: relative; overflow: hidden; }
+.sb .bar span { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 3px; }
+.sb.ret .bar span { background: var(--amber); }
+.sb .n { font-family: var(--font-mono); text-align: right; }
+@media (max-width: 520px) { .sb { grid-template-columns: 120px 1fr 32px; } }
+
+ol.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; counter-reset: s; }
+ol.steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 14px 14px 46px; position: relative; font-size: 0.92rem; }
+ol.steps li::before { content: counter(s); position: absolute; left: 14px; top: 13px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--surface); font-family: var(--font-mono); font-size: 0.75rem; display: grid; place-items: center; }
+ol.steps li b { display: block; margin-bottom: 2px; }
+ol.steps li.fast::after { content: "code, ms"; position: absolute; right: 10px; top: 10px; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); }
+ol.steps li.ai { border-color: var(--accent); }
+ol.steps li.ai::after { content: "Claude"; position: absolute; right: 10px; top: 10px; font-family: var(--font-mono); font-size: 0.68rem; color: var(--accent); }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 6px; align-content: start; font-size: 0.92rem; }
+.card h3 { font-size: 1rem; }
+ul.tight { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.note { border-left: 3px solid var(--amber); padding: 10px 14px; background: var(--surface); border-radius: 0 8px 8px 0; font-size: 0.92rem; }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Wallex challenge · StarCoach Agentic AI hackathon · team plan</div>
+  <h1>Wallex Sweep Catcher</h1>
+  <p class="prose">We keep buy orders resting far below fair value on Wallex. When a large market sell sweeps the order book, our bid fills, and we sell back at fair value seconds or minutes later. Fast code runs the orders. Claude sets the plan, watches the news, decides on trades that do not recover, and writes the decision log.</p>
+  <div class="meta">
+    <span>Status: <span class="pill go">proposal, before implementation</span></span>
+    <span>Data to 2026-10-22 09:16 UTC</span>
+    <span>Account: 5,000,000 toman, spot only</span>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#summary">Summary</a><a href="#score">Scoring</a><a href="#tested">What we tested</a><a href="#idea">The idea</a><a href="#evidence">Evidence</a><a href="#risks">Risks</a><a href="#arch">Architecture</a><a href="#flow">Trade flow</a><a href="#ai">Claude's role</a><a href="#stack">Stack</a><a href="#milestones">Milestones</a><a href="#questions">Open questions</a>
+  </nav>
+</header>
+
+<section id="summary" class="stack">
+  <div class="eyebrow">Summary</div>
+  <h2>A 60-day backtest says the idea pays, with two filters</h2>
+  <p class="prose">Setup: a bid 1.3% below fair value on 18 Wallex markets, 1,000,000 toman per trade, real challenge fees, 2026-08-22 to 2026-10-22. The filters skip a fill when Binance is falling, and skip toman markets when USDTTMN jumps.</p>
+  <div class="kpis">
+    <div class="kpi"><span class="v">5.0</span><span class="l">fills per day</span></div>
+    <div class="kpi"><span class="v">81%</span><span class="l">winning trades</span></div>
+    <div class="kpi"><span class="v">+0.67%</span><span class="l">median net per trade</span></div>
+    <div class="kpi hi"><span class="v">+25.4k</span><span class="l">toman per day (all 18 markets)</span></div>
+    <div class="kpi"><span class="v">−11k</span><span class="l">maximum drawdown, toman</span></div>
+    <div class="kpi hi"><span class="v">+11.6k</span><span class="l">toman per day, 5 markets, last 31 days (realistic)</span></div>
+  </div>
+  <p class="prose muted">The realistic figure is lower because open orders lock funds. A 5M account can keep about 5 bids of 1M at the same time. We chose those 5 markets on the first 30 days and tested them on the last 31 days.</p>
+</section>
+
+<section id="score" class="grid2">
+  <div class="stack prose">
+    <div class="eyebrow">Why this shape of strategy</div>
+    <h2>Return is only 90 of 300 points</h2>
+    <p>Return counts only if it is positive. The other 210 points reward low drawdown, steady activity, clear strategy logic, real AI use, risk management, reproducibility, and a backtest with a shadow test.</p>
+    <p>So the target is a small, steady, positive return with a strong AI and risk story. A strategy with many small winning trades and a tiny drawdown fits this scoring well.</p>
+  </div>
+  <div class="figure">
+    <div class="scorebars" id="scorebars"></div>
+    <div class="cap">Points per category. Amber: return. Green: everything else.</div>
+  </div>
+</section>
+
+<section id="tested" class="stack">
+  <div class="eyebrow">What we tested before</div>
+  <h2>Four directions failed or are too risky</h2>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Idea</th><th>Test</th><th>Result</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Buy the Wallex lag behind global prices (taker)</td><td>lagcatcher shadow test, 12.3 h of live order books, 13 variants</td><td>No variant with a positive median and more than 2 trades. Global moves of 5 bp or more in 1 s are small compared with the 0.23% to 0.55% fees.</td><td><span class="pill no">dropped</span></td></tr>
+        <tr><td>Same with a resting bid 0.5% to 0.8% below fair value</td><td>Same data</td><td>Negative in all variants (−31k to −105k toman).</td><td><span class="pill no">dropped</span></td></tr>
+        <tr><td>Binance or one exchange as the leader</td><td>Event study, 25 Binance moves, 250 ms resolution</td><td>Bybit, OKX, KuCoin and Gate move with Binance inside 0.25 s. No lead to use.</td><td><span class="pill no">dropped</span></td></tr>
+        <tr><td>Loops inside Wallex (coin/TMN vs coin/USDT x USDTTMN)</td><td>13.7 h of books, sampled every second</td><td>The loop beat the 0.73% cost 0% of the time. Best 1%: +0.33%.</td><td><span class="pill no">dropped</span></td></tr>
+        <tr><td>Hold USDT against the toman</td><td>60 days of USDTTMN candles</td><td>+0.52% a day on average. A 3-day window averages +1.49%, but can lose −3.1%. This is a bet on the toman, not an edge.</td><td><span class="pill maybe">optional overlay</span></td></tr>
+        <tr><td><b>Deep resting bids that catch sweeps</b></td><td>Order-book replay (13.6 h) and 60-day candle study</td><td>Positive at every depth from 1.0% to 2.0% with filters. Details below.</td><td><span class="pill go">chosen</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="idea" class="grid2">
+  <div class="stack prose">
+    <div class="eyebrow">The idea</div>
+    <h2>What a sweep looks like</h2>
+    <p>On 2026-10-22 at 07:03:53 UTC, a seller sold BTC with one large market order on BTCTMN. The order walked down the book through 85 trades in 20 milliseconds, down to 21.66B toman, 1.5% below fair value. One trade alone was 645M toman.</p>
+    <p>2.6 seconds later, buyers paid 22.018B again. A bid resting 1.3% below fair value filled in that sweep, and its sell at fair value filled one second later: <b class="mono">+0.82%</b> after fees.</p>
+    <p class="muted">Our bid fills only when a trade prints below our price. Our higher bid has priority, so such a trade means our order filled first and in full.</p>
+  </div>
+  <div class="figure">
+    <div class="scroll"><svg id="sweepchart" viewBox="0 0 520 300" width="100%" role="img" aria-label="BTCTMN trade prices during the sweep at 07:03:53 UTC"></svg></div>
+    <div class="legend"><span><i style="background:var(--ask)"></i>seller trades (sweep)</span><span><i style="background:var(--bid)"></i>buyer trade, 2.6 s later</span><span><i style="background:var(--amber)"></i>our bid, 1.3% below fair value</span></div>
+    <div class="cap">BTCTMN trades in order, in billions of toman per BTC. Recorded by lagcatcher on the server.</div>
+  </div>
+</section>
+
+<section id="evidence" class="stack">
+  <div class="eyebrow">Evidence</div>
+  <h2>The 60-day candle study</h2>
+  <p class="prose">Data: Wallex 1-minute candles (18 markets and USDTTMN) and Binance 1-minute prices. Fair value is the Binance price, times USDTTMN for toman markets, times a rolling 60-minute premium. The bid uses the fair value of the previous minute, so it does not see the future. The exit is a maker sell at fair value when a later trade prints above it, else a taker sell after 15 minutes.</p>
+
+  <div class="grid2">
+    <div class="figure">
+      <h3>Net toman per day, by bid depth</h3>
+      <div class="scroll"><svg id="depthchart" viewBox="0 0 480 260" width="100%" role="img" aria-label="Net toman per day by depth, with and without filters"></svg></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>with both filters</span><span><i style="background:var(--twin)"></i>no filters</span></div>
+    </div>
+    <div class="figure">
+      <h3>Cumulative net, 1.3% depth, 1M per trade</h3>
+      <div class="scroll"><svg id="equitychart" viewBox="0 0 480 260" width="100%" role="img" aria-label="Cumulative net toman over 61 days"></svg></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>with both filters: +1,550k</span><span><i style="background:var(--twin)"></i>no filters: +993k</span></div>
+    </div>
+  </div>
+
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Depth below fair value</th><th class="num">Fills / day</th><th class="num">Win</th><th class="num">Median</th><th class="num">Net / day</th><th class="num">Max drawdown</th><th class="num">Last 31 days</th><th class="num">No filters: net / day, drawdown</th></tr></thead>
+      <tbody>
+        <tr><td>1.0%</td><td class="num">10.8</td><td class="num">76%</td><td class="num">+0.37%</td><td class="num">+26.5k</td><td class="num">−32k</td><td class="num">+26.3k</td><td class="num">+7.5k, −263k</td></tr>
+        <tr class="best"><td><b>1.3% (plan)</b></td><td class="num">5.0</td><td class="num">81%</td><td class="num">+0.67%</td><td class="num">+25.4k</td><td class="num">−11k</td><td class="num">+22.5k</td><td class="num">+16.3k, −186k</td></tr>
+        <tr><td>1.6%</td><td class="num">3.0</td><td class="num">86%</td><td class="num">+0.98%</td><td class="num">+23.4k</td><td class="num">−9k</td><td class="num">+21.4k</td><td class="num">+17.7k, −194k</td></tr>
+        <tr><td>2.0%</td><td class="num">1.4</td><td class="num">86%</td><td class="num">+1.40%</td><td class="num">+16.3k</td><td class="num">−6k</td><td class="num">+15.6k</td><td class="num">+14.1k, −62k</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <h3>Why the filters matter</h3>
+      <div class="figure scroll">
+        <table>
+          <thead><tr><th>Fills at 1.3% depth</th><th class="num">Fills</th><th class="num">Win</th><th class="num">Mean</th></tr></thead>
+          <tbody>
+            <tr><td>Binance calm (moved less than 0.3% in the minute)</td><td class="num">316</td><td class="num">79%</td><td class="num">+0.41%</td></tr>
+            <tr><td>Binance fell 0.3% or more: a real move, not a sweep</td><td class="num">85</td><td class="num">39%</td><td class="num">−0.55%</td></tr>
+            <tr><td>Binance rose 0.3% or more</td><td class="num">21</td><td class="num">81%</td><td class="num">+0.84%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:0.92rem">The worst day was 2026-10-01. At 05:36 UTC, USDTTMN fell 7% in one minute (253k to 235k toman). Every toman-market bid lost about −4.4%. The second filter skips toman markets when USDTTMN moved 0.5% or more in the last 5 minutes.</p>
+    </div>
+    <div class="figure">
+      <h3>Net per market, 1.3% depth, with filters</h3>
+      <div class="scroll"><svg id="marketchart" viewBox="0 0 440 400" width="100%" role="img" aria-label="Net toman per market over 61 days"></svg></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>toman market</span><span><i style="background:var(--amber)"></i>USDT market</span></div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <h3>Check on live order books (13.6 h, 2026-10-21 20:42 to 10-22 09:16 UTC)</h3>
+    <div class="figure scroll">
+      <table>
+        <thead><tr><th>Depth (toman markets)</th><th class="num">Trades</th><th class="num">Win</th><th class="num">Median</th><th class="num">Net, 1M per trade</th><th>Fills</th></tr></thead>
+        <tbody>
+          <tr><td>0.8%</td><td class="num">5</td><td class="num">60%</td><td class="num">+0.18%</td><td class="num">+1.5k</td><td>also caught DOGEUSDT and ADAUSDT real moves (losses)</td></tr>
+          <tr><td>1.1%</td><td class="num">3</td><td class="num">100%</td><td class="num">+0.61%</td><td class="num">+18.4k</td><td>BTCTMN 01:40, BTCTMN 07:03, PEPETMN 09:13</td></tr>
+          <tr class="best"><td><b>1.3%</b></td><td class="num">3</td><td class="num">100%</td><td class="num">+0.82%</td><td class="num">+24.5k</td><td>same three sweeps</td></tr>
+          <tr><td>1.5%</td><td class="num">2</td><td class="num">100%</td><td class="num">+0.96%</td><td class="num">+19.1k</td><td>the two BTCTMN sweeps</td></tr>
+          <tr><td>1.7% and deeper</td><td class="num">0</td><td class="num">–</td><td class="num">–</td><td class="num">0</td><td>the sweeps ended near 1.5%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose muted">The candle study found the same two BTCTMN sweeps. Three good events are too few on their own. The live run continues and adds data every day.</p>
+  </div>
+</section>
+
+<section id="risks" class="stack">
+  <div class="eyebrow">Risks and limits</div>
+  <h2>What can make the backtest wrong</h2>
+  <div class="cards">
+    <div class="card"><h3>Partly fitted filter</h3><p>We chose the USDTTMN filter after we saw the 10-01 crash. The Binance filter has a clear reason, but both use information from inside the same minute.</p></div>
+    <div class="card"><h3>Minute candles</h3><p>Candles do not show the order of trades inside a minute. The live order-book test is the final check, and it has only 3 events so far.</p></div>
+    <div class="card"><h3>Funds are locked</h3><p>Each open bid locks its toman or USDT. With 5M we can keep about 5 bids. USDT markets also need a USDT balance, which carries FX risk.</p></div>
+    <div class="card"><h3>Other bots</h3><p>Other bots can rest bids at the same price before us. Then they fill first. Deeper bids avoid most of this, but fill less often.</p></div>
+    <div class="card"><h3>Order limits and API access</h3><p>Wallex allows about 20 order requests per 10 s. Bids must move with fair value. We must also confirm that the order API works from our server.</p></div>
+    <div class="card"><h3>Toman shocks and news</h3><p>A news shock can move all toman markets by several percent in one minute. The filter and Claude's news watch reduce this risk, but cannot remove it.</p></div>
+  </div>
+</section>
+
+<section id="arch" class="stack">
+  <div class="eyebrow">Architecture</div>
+  <h2>Fast code trades, Claude plans</h2>
+  <p class="prose">A sweep lasts 0.01 to 3 seconds. An LLM call takes 5 to 30 seconds. So Claude never reacts to a sweep. The executor holds the bids and runs the filters in milliseconds. Claude changes the plan every 15 minutes, or at once after an alert.</p>
+  <div class="figure">
+    <div class="scroll"><svg id="archchart" viewBox="0 0 980 520" width="100%" style="min-width:760px" role="img" aria-label="System architecture"></svg></div>
+    <div class="cap">Solid arrows: data and orders. Dashed arrows: plans and reviews from Claude, checked by the plan validator.</div>
+  </div>
+</section>
+
+<section id="flow" class="stack">
+  <div class="eyebrow">Trade flow</div>
+  <h2>The life of one trade</h2>
+  <ol class="steps">
+    <li class="ai"><b>Plan</b>Claude picks up to 5 markets, a depth between 1.0% and 2.0% for each, and the size. The validator clamps every value to the hard limits.</li>
+    <li class="fast"><b>Rest the bid</b>The executor keeps a bid at fair value minus the depth. It moves the bid when fair value moves more than 0.2%, inside the order budget.</li>
+    <li class="fast"><b>Filter</b>The executor cancels the bid when Binance falls 0.3% or more in a minute, or (toman markets) when USDTTMN moves 0.5% or more in 5 minutes.</li>
+    <li class="fast"><b>Fill</b>A sweep fills the bid. The executor places a sell at fair value at once and logs the fill.</li>
+    <li class="fast"><b>Exit at fair value</b>Most trades end here, seconds to minutes after the fill, with the maker fee.</li>
+    <li class="ai"><b>Hold or cut</b>No exit after 5 minutes: Claude reads the context (global prices, USDTTMN, news) and answers hold or cut now.</li>
+    <li class="fast"><b>Time limit</b>After 15 minutes, the executor sells at the bid as a taker.</li>
+    <li class="ai"><b>Log</b>Claude writes the decision log entry for the trade: why the bid was there, the filters, the decision, the result.</li>
+  </ol>
+</section>
+
+<section id="ai" class="stack">
+  <div class="eyebrow">AI part</div>
+  <h2>Claude's four jobs</h2>
+  <p class="prose">We use Claude (frontier model, no training of our own). Every Claude output is structured JSON with a fixed schema. Code checks it against the hard limits before it can change anything.</p>
+  <div class="cards">
+    <div class="card"><h3>1. Supervisor</h3><p>Every 15 minutes and on alerts. Input: market state, recent sweeps, fills, and news from web search (Iran FX, sanctions, Wallex announcements). Output: markets, depths, sizes, pause.</p></div>
+    <div class="card"><h3>2. Hold or cut</h3><p>For a position that has not reached fair value after 5 minutes. Today, time exits lose −0.2% on average. This is where Claude's judgment can add money.</p></div>
+    <div class="card"><h3>3. Decision log</h3><p>One readable entry per trade and per plan change, written from the stored data. The challenge requires this log.</p></div>
+    <div class="card"><h3>4. Daily review</h3><p>Compares the live bot with the no-AI twin (fixed 1.3%, same markets) and proposes bounded changes. This measures what the AI added, for the demo.</p></div>
+  </div>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Claude use</th><th class="num">Calls in 3 days</th><th>Model</th><th class="num">Estimated cost</th></tr></thead>
+      <tbody>
+        <tr><td>Supervisor (every 15 min)</td><td class="num">about 290</td><td><code>claude-opus-5-5</code> with web search</td><td class="num">$30 to $40</td></tr>
+        <tr><td>Hold or cut, decision logs, daily reviews</td><td class="num">about 100</td><td><code>claude-opus-5-5</code></td><td class="num">$3 to $6</td></tr>
+        <tr><td><b>Total</b></td><td class="num"></td><td>Claude Sonnet 5.5 costs about half, if we want to save</td><td class="num"><b>$35 to $45</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">Hard limits that no plan can change: 1M toman per bid at most, 5 open bids at most, 15-minute time limit, daily loss stop −1.5%, equity floor −2.5% from the peak, all coins back to toman before the last USDTTMN close (23:30 Tehran).</div>
+</section>
+
+<section id="stack" class="stack">
+  <div class="eyebrow">Stack</div>
+  <h2>What we build it with</h2>
+  <p class="prose">We extend lagcatcher. It already has the feeds, the fair value, the raw recorder, the replay and 63 tests. It runs on the server today.</p>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Part</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Language</td><td>Python 3.10+ with <code>asyncio</code>, <code>uv</code> for the environment</td><td>Same as lagcatcher. The server has Python 3.10.</td></tr>
+        <tr><td>Market data</td><td><code>websockets</code>: Wallex v2 (v1 fallback), Binance, Bybit, OKX, KuCoin, Gate</td><td>Already built and running in <code>lagcatcher/feeds.py</code>.</td></tr>
+        <tr><td>Fair value and filters</td><td><code>lagcatcher/fairvalue.py</code> plus a new filter module</td><td>Premium only from spreads of 0.3% or less. Global and USDTTMN shock filters.</td></tr>
+        <tr><td>Executor</td><td>New <code>sweep</code> module: bid manager, exit manager, risk guard, order budget</td><td>Deterministic and fast. It works without Claude.</td></tr>
+        <tr><td>Wallex orders</td><td>Wallex REST API with an API key, through <code>httpx</code> (async)</td><td>Place, cancel and check orders. Paper mode uses the same interface.</td></tr>
+        <tr><td>AI</td><td><code>anthropic</code> Python SDK, <code>claude-opus-5-5</code>, structured JSON output, web search tool</td><td>Supervisor, hold or cut, logs, reviews. No model training.</td></tr>
+        <tr><td>Plan schema</td><td><code>pydantic</code></td><td>Validates Claude's JSON and clamps it to the hard limits.</td></tr>
+        <tr><td>Storage</td><td>SQLite (orders, fills, plans, logs) plus the existing gzip JSONL raw files</td><td>One file, easy to copy into the repo and replay.</td></tr>
+        <tr><td>Backtest and shadow</td><td><code>lagcatcher replay</code> and the 60-day candle study</td><td>The same code runs live, in paper mode and in replay.</td></tr>
+        <tr><td>Tests</td><td><code>pytest</code></td><td>63 tests today. Each new rule gets its own tests.</td></tr>
+        <tr><td>Run</td><td>systemd unit on the Hetzner server, with CPU and memory limits</td><td>Same as the shadow test. It must not touch the other bot on that server.</td></tr>
+        <tr><td>Reports</td><td>Daily Markdown and HTML report from SQLite, GitHub repo</td><td>The repo, the MD document and the decision logs are deliverables.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="milestones" class="stack">
+  <div class="eyebrow">Milestones</div>
+  <h2>From paper to the live challenge</h2>
+  <div class="figure scroll">
+    <table>
+      <thead><tr><th>Step</th><th>Work</th><th>Done when</th><th class="num">Effort</th></tr></thead>
+      <tbody>
+        <tr><td>1. Paper sweep bot</td><td>Executor with filters, funds limit and order budget, in paper mode next to the recorder</td><td>Paper fills match the replay of the same hours</td><td class="num">1 day</td></tr>
+        <tr><td>2. Wallex order client</td><td>API key, place, cancel, status. One tiny live order to test</td><td>A real bid placed and cancelled from the server</td><td class="num">0.5 day</td></tr>
+        <tr><td>3. Claude supervisor</td><td>State snapshot, plan schema, validator, hold or cut, decision log, no-AI twin</td><td>24 h paper run with plans and logs</td><td class="num">1 to 1.5 days</td></tr>
+        <tr><td>4. Rehearsal</td><td>Small live size, all limits on</td><td>No errors for 12 h, logs complete</td><td class="num">0.5 day</td></tr>
+        <tr><td>5. Challenge</td><td>3 days live, daily review</td><td>Final value in toman</td><td class="num">3 days</td></tr>
+        <tr><td>6. Deliverables</td><td>5-minute demo video, GitHub repo with MD document, decision logs</td><td>Submitted</td><td class="num">1 day</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="questions" class="stack prose">
+  <div class="eyebrow">Open questions</div>
+  <h2>We need answers before step 2</h2>
+  <ul class="tight">
+    <li>When does the challenge start? This sets the deadline for steps 1 to 4.</li>
+    <li>Does the Wallex order API accept requests from our server outside Iran, and how fast is it? If not, we need a server in Iran for the executor.</li>
+    <li>What are the real order limits of the challenge account, and do open orders lock funds as we assume?</li>
+    <li>What are the liquidation limit and the daily fee of the credit package?</li>
+    <li>Do we add the USDT overlay (hold part of the account in USDT)? It can add return, but also drawdown.</li>
+    <li>Who owns which part: executor, Wallex client, Claude supervisor, reports and video?</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const css = name => `var(--${name})`;
+
+// Scoring bars
+(() => {
+  const rows = [["Return rank (if positive)", 90, true], ["Strategy logic", 40], ["Real AI use", 35], ["Drawdown", 30], ["Risk management", 30], ["Reproducibility", 25], ["Backtest and shadow test", 20], ["Activity", 15], ["Stability", 15]];
+  const box = document.getElementById("scorebars");
+  for (const [label, n, ret] of rows) {
+    const r = document.createElement("div");
+    r.className = "sb" + (ret ? " ret" : "");
+    r.innerHTML = `<span>${label}</span><span class="bar"><span style="width:${(n / 90) * 100}%"></span></span><span class="n">${n}</span>`;
+    box.appendChild(r);
+  }
+})();
+
+// Sweep chart
+(() => {
+  const prices = [22.0107,22.0101,22.0107,22.0094,22.0009,22.0107,22.0094,22.0094,22.0,22.0094,22.0088,22.0088,22.0009,22.0,22.0009,22.0006,22.0,22.0006,22.0,21.999,22.0,22.0,22.0,22.0,21.98,21.999,22.0,21.94,21.96,21.98,21.94,21.9373,21.9373,21.96,21.92,21.9217,21.9106,21.9373,21.9,21.92,21.9217,21.9,21.9083,21.9,21.92,21.88,21.9106,21.9,21.86,21.9,21.84,21.82,21.8,21.9,21.9,21.7906,21.78,21.88,21.8965,21.76,21.86,21.74,21.8753,21.72,21.84,21.85,21.7,21.82,21.82,21.68,21.8,21.6757,21.8,21.8,21.66,21.78,21.66,21.76,21.74,21.72,21.7,21.68,21.68,21.66,21.66,22.018];
+  const svg = document.getElementById("sweepchart");
+  const W = 520, H = 300, L = 58, R = 92, T = 16, B = 34;
+  const ymin = 21.60, ymax = 22.06;
+  const n = prices.length;
+  const x = i => L + (i / (n - 1)) * (W - L - R);
+  const y = v => T + (ymax - v) / (ymax - ymin) * (H - T - B);
+  for (const v of [21.6, 21.7, 21.8, 21.9, 22.0]) {
+    el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: "grid" }, svg);
+    el("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg, v.toFixed(1) + "B");
+  }
+  el("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, class: "axis" }, svg);
+  el("text", { x: L, y: H - B + 18 }, svg, "trade 1");
+  el("text", { x: x(n - 2), y: H - B + 18, "text-anchor": "middle" }, svg, "85 trades in 20 ms");
+  const fv = 21.996, bid = fv * (1 - 0.013);
+  el("line", { x1: L, x2: W - R, y1: y(fv), y2: y(fv), stroke: css("ink"), "stroke-width": 1, "stroke-dasharray": "5 4" }, svg);
+  el("text", { x: W - R + 6, y: y(fv) + 4, class: "t-ink" }, svg, "fair value");
+  el("text", { x: W - R + 6, y: y(fv) + 17 }, svg, "21.996B");
+  el("line", { x1: L, x2: W - R, y1: y(bid), y2: y(bid), stroke: css("amber"), "stroke-width": 2 }, svg);
+  el("text", { x: W - R + 6, y: y(bid) + 4, class: "t-amb" }, svg, "our bid −1.3%");
+  el("text", { x: W - R + 6, y: y(bid) + 17 }, svg, bid.toFixed(3) + "B");
+  prices.forEach((p, i) => {
+    const last = i === n - 1;
+    el("circle", { cx: x(i), cy: y(p), r: last ? 5 : 3, fill: last ? css("bid") : css("ask"), "fill-opacity": last ? 1 : 0.75 }, svg);
+  });
+  el("text", { x: x(n - 1) - 8, y: y(22.018) - 10, "text-anchor": "end", class: "t-ink" }, svg, "+2.6 s: 22.018B");
+  el("text", { x: x(74) , y: y(21.66) + 18, "text-anchor": "middle", class: "t-ask" }, svg, "low 21.66B (−1.5%)");
+})();
+
+// Depth chart
+(() => {
+  const data = [["1.0%", 26.5, 7.5], ["1.3%", 25.4, 16.3], ["1.6%", 23.4, 17.7], ["2.0%", 16.3, 14.1]];
+  const svg = document.getElementById("depthchart");
+  const W = 480, H = 260, L = 44, R = 12, T = 14, B = 34, max = 30;
+  const y = v => T + (max - v) / max * (H - T - B);
+  for (const v of [0, 10, 20, 30]) {
+    el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v ? "grid" : "axis" }, svg);
+    el("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg, v + "k");
+  }
+  const gw = (W - L - R) / data.length, bw = gw * 0.3;
+  data.forEach(([d, f, raw], i) => {
+    const cx = L + gw * i + gw / 2;
+    el("rect", { x: cx - bw - 2, y: y(f), width: bw, height: y(0) - y(f), fill: css("accent"), rx: 2 }, svg);
+    el("rect", { x: cx + 2, y: y(raw), width: bw, height: y(0) - y(raw), fill: css("twin"), rx: 2 }, svg);
+    el("text", { x: cx - bw / 2 - 2, y: y(f) - 5, "text-anchor": "middle", class: "t-acc" }, svg, "+" + f);
+    el("text", { x: cx + bw / 2 + 2, y: y(raw) - 5, "text-anchor": "middle" }, svg, "+" + raw);
+    el("text", { x: cx, y: H - B + 18, "text-anchor": "middle", class: d === "1.3%" ? "t-ink" : "" }, svg, d);
+  });
+})();
+
+// Equity chart
+(() => {
+  const days = ["08-22","08-23","08-24","08-25","08-26","08-27","08-28","08-29","08-30","08-31","09-01","09-02","09-03","09-04","09-05","09-06","09-07","09-08","09-09","09-10","09-11","09-12","09-13","09-14","09-15","09-16","09-17","09-18","09-19","09-20","09-21","09-22","09-23","09-24","09-25","09-26","09-27","09-28","09-29","09-30","10-01","10-02","10-03","10-04","10-05","10-06","10-07","10-08","10-09","10-10","10-11","10-12","10-13","10-14","10-15","10-16","10-17","10-18","10-19","10-20","10-21","10-22"];
+  const filt = [78.9,174.6,179.8,215.4,317.4,325.9,325.9,325.9,320.0,320.0,320.0,320.0,378.5,423.7,430.0,436.9,436.9,461.3,461.3,461.3,470.4,470.4,491.0,491.0,520.9,530.8,530.8,611.1,809.4,797.9,903.8,944.6,971.1,971.1,971.1,971.1,977.7,997.7,1059.0,1078.5,1079.1,1086.7,1091.7,1102.9,1100.3,1119.5,1255.6,1359.6,1375.5,1400.5,1406.9,1414.8,1493.6,1493.6,1492.1,1495.6,1499.3,1505.5,1505.5,1535.9,1535.9,1549.7];
+  const raw = [86.8,29.9,25.3,65.3,166.1,179.7,179.7,179.7,173.2,173.2,173.2,173.2,231.6,169.2,175.6,173.4,173.4,197.7,197.7,199.0,205.5,205.5,226.2,226.2,244.2,262.8,262.8,343.1,512.4,504.0,521.7,548.0,572.2,572.2,572.2,572.2,578.7,598.7,660.0,669.2,518.2,483.3,488.3,489.5,486.9,518.8,713.0,802.7,818.6,843.6,850.1,867.5,946.3,925.7,939.0,942.6,946.2,952.5,952.5,986.4,986.4,992.7];
+  const svg = document.getElementById("equitychart");
+  const W = 480, H = 260, L = 52, R = 14, T = 14, B = 34, max = 1600;
+  const n = days.length;
+  const x = i => L + i / (n - 1) * (W - L - R);
+  const y = v => T + (max - v) / max * (H - T - B);
+  for (const v of [0, 400, 800, 1200, 1600]) {
+    el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: v ? "grid" : "axis" }, svg);
+    el("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg, v ? (v / 1000).toFixed(1) + "M" : "0");
+  }
+  for (const i of [0, 20, 40, 61]) el("text", { x: x(i), y: H - B + 18, "text-anchor": i === 0 ? "start" : i === 61 ? "end" : "middle" }, svg, days[i]);
+  const path = arr => arr.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  el("path", { d: path(filt) + ` L${x(n - 1)} ${y(0)} L${x(0)} ${y(0)} Z`, fill: css("accent"), "fill-opacity": 0.12, stroke: "none" }, svg);
+  el("path", { d: path(raw), fill: "none", stroke: css("twin"), "stroke-width": 1.6 }, svg);
+  el("path", { d: path(filt), fill: "none", stroke: css("accent"), "stroke-width": 2.2 }, svg);
+  el("circle", { cx: x(n - 1), cy: y(filt[n - 1]), r: 4, fill: css("accent") }, svg);
+  el("line", { x1: x(40), x2: x(40), y1: y(669), y2: y(470), stroke: css("ask"), "stroke-width": 1, "stroke-dasharray": "3 3" }, svg);
+  el("text", { x: x(40) + 6, y: y(430), class: "t-ask" }, svg, "10-01 USDTTMN −7%");
+})();
+
+// Market chart
+(() => {
+  const m = [["ADATMN",420],["BTCTMN",188],["ETHUSDT",166],["TRXTMN",120],["ETHTMN",118],["PEPEUSDT",116],["SHIBTMN",111],["ADAUSDT",83],["DOGEUSDT",46],["DOGETMN",46],["XRPTMN",36],["PEPETMN",31],["XRPUSDT",21],["SOLTMN",20],["BNBTMN",14],["BTCUSDT",14]];
+  const svg = document.getElementById("marketchart");
+  const W = 440, L = 80, R = 46, T = 6, row = 24, max = 450;
+  m.forEach(([name, v], i) => {
+    const yy = T + i * row;
+    const w = v / max * (W - L - R);
+    const usdt = name.endsWith("USDT");
+    el("text", { x: L - 8, y: yy + 15, "text-anchor": "end", class: "t-ink" }, svg, name);
+    el("rect", { x: L, y: yy + 4, width: w, height: 14, rx: 2, fill: usdt ? css("amber") : css("accent") }, svg);
+    el("text", { x: L + w + 6, y: yy + 15 }, svg, "+" + v + "k");
+  });
+})();
+
+// Architecture diagram
+(() => {
+  const svg = document.getElementById("archchart");
+  const defs = el("defs", {}, svg);
+  for (const [id, color] of [["arr", "ink"], ["arrA", "accent"]]) {
+    const mk = el("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0 0 L10 5 L0 10 z", fill: css(color) }, mk);
+  }
+  function box(x, y, w, h, title, lines, kind) {
+    const fill = kind === "ai" ? css("accent-soft") : css("surface");
+    const stroke = kind === "ai" ? css("accent") : kind === "ext" ? css("twin") : css("line");
+    el("rect", { x, y, width: w, height: h, rx: 8, fill, stroke, "stroke-width": kind === "core" ? 2 : 1.2, "stroke-dasharray": kind === "ext" ? "4 3" : "" }, svg);
+    el("text", { x: x + 12, y: y + 22, class: kind === "ai" ? "t-acc" : "t-ink", "font-weight": 600, style: "font-family:var(--font-body);font-size:13px" }, svg, title);
+    lines.forEach((t, i) => el("text", { x: x + 12, y: y + 42 + i * 16 }, svg, t));
+  }
+  function arrow(x1, y1, x2, y2, ai, label, lx, ly) {
+    el("path", { d: `M${x1} ${y1} L${x2} ${y2}`, stroke: ai ? css("accent") : css("ink"), "stroke-width": 1.4, fill: "none", "stroke-dasharray": ai ? "5 4" : "", "marker-end": ai ? "url(#arrA)" : "url(#arr)" }, svg);
+    if (label) el("text", { x: lx, y: ly, "text-anchor": "middle", class: ai ? "t-acc" : "" }, svg, label);
+  }
+  // Column 1: data sources
+  box(20, 150, 200, 92, "Wallex websocket", ["order books, trades", "18 markets + USDTTMN"], "ext");
+  box(20, 262, 200, 92, "Global websockets", ["Binance, Bybit, OKX,", "KuCoin, Gate quotes"], "ext");
+  box(20, 20, 200, 92, "News (web search)", ["Iran FX, sanctions,", "Wallex announcements"], "ext");
+  // Column 2: engine
+  box(270, 200, 200, 104, "Fair value + filters", ["global mid x USDTTMN", "x premium (spread ≤0.3%)", "Binance / USDTTMN shocks"], "core");
+  // Column 3: executor
+  box(520, 180, 220, 144, "Sweep executor", ["bid manager (5 bids)", "exit manager (sell at FV)", "risk guard, order budget", "time limit 15 min", "runs without Claude"], "core");
+  // Column 4: exchange
+  box(790, 200, 170, 104, "Wallex order API", ["place, cancel, status", "real or paper mode"], "ext");
+  // Top: Claude
+  box(270, 20, 200, 104, "Claude supervisor", ["every 15 min + alerts", "markets, depth, size,", "pause, hold or cut"], "ai");
+  box(520, 20, 220, 104, "Plan validator", ["pydantic schema", "clamps to hard limits", "rejects bad plans"], "core");
+  // Bottom: storage and reports
+  box(520, 380, 220, 104, "Trade store (SQLite)", ["orders, fills, plans,", "filters, raw JSONL.gz"], "core");
+  box(270, 380, 200, 104, "Claude log + review", ["decision log per trade", "daily review vs twin"], "ai");
+  box(20, 380, 200, 104, "No-AI twin (paper)", ["fixed 1.3% depth", "same markets, same data"], "ext");
+  box(790, 380, 170, 104, "Repo + report", ["GitHub, MD document", "logs, demo video"], "ext");
+  // Arrows
+  arrow(220, 196, 268, 236, false);
+  arrow(220, 308, 268, 270, false);
+  arrow(470, 252, 518, 252, false, "fair value", 494, 244);
+  arrow(740, 238, 788, 238, false, "orders", 764, 230);
+  arrow(788, 268, 742, 268, false, "fills", 764, 284);
+  arrow(220, 66, 268, 66, true);
+  arrow(470, 72, 518, 72, true, "JSON plan", 494, 64);
+  arrow(630, 124, 630, 178, true, "checked plan", 676, 154);
+  arrow(630, 324, 630, 378, false, "events", 660, 354);
+  arrow(518, 432, 472, 432, false);
+  el("path", { d: "M560 378 L560 352 L496 352 L496 110 L472 110", stroke: css("accent"), "stroke-width": 1.4, fill: "none", "stroke-dasharray": "5 4", "marker-end": "url(#arrA)" }, svg);
+  el("text", { x: 528, y: 368, "text-anchor": "middle", class: "t-acc" }, svg, "state, fills");
+  arrow(268, 432, 222, 432, false, "compare", 245, 424);
+  arrow(740, 432, 788, 432, false);
+})();
+</script>

@@ -1,0 +1,23 @@
+# Lagcatcher shadow test settings. Missing keys use lagcatcher/config.py DEFAULTS.
+[run]
+out_dir = "data"
+status_every_s = 60.0
+
+[venues]
+# OKX also works where Cloudflare does not block the host IP.
+enabled = ["bybit", "kucoin", "gate"]
+max_quote_age_s = 10.0
+min_venues = 2
+
+# Challenge account fees, percent per side.
+[fees]
+tmn_maker = 0.25
+tmn_taker = 0.30
+usdt_maker = 0.10
+usdt_taker = 0.13
+
+[taker]
+latencies_s = [0.3, 1.0, 3.0]
+
+[paper]
+notional_tmn = 1000000.0

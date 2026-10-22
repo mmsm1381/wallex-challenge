@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lagcatcher"
+version = "0.1.0"
+description = "Paper-trading shadow test of the Wallex lag edge"
+requires-python = ">=3.10"
+dependencies = ["websockets>=13", "tomli>=2; python_version < '3.11'"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["lagcatcher"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

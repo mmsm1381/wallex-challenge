@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Recorded and downloaded data (large, make it again with research/README.md)
+data/
+research/data/
+
+# Secrets
+.env
+.env.*
+*.key
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

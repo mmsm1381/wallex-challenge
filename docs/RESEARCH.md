@@ -1,0 +1,115 @@
+# Research results
+
+This document collects the results that decide the strategy. Each result names the script and the data that produced it. `research/README.md` tells how to run the scripts.
+
+All money figures use 1,000,000 toman per trade and the real fees of the challenge account:
+
+| Quote | Maker | Taker | Round trip (maker in, maker out) |
+|---|---|---|---|
+| Toman (TMN) | 0.25% | 0.30% | 0.50% |
+| USDT | 0.10% | 0.13% | 0.20% |
+
+## 1. The scoring decides the shape of the strategy
+
+The score has 300 points. Return gives 90 points, and only when the return is positive. The other 210 points are for drawdown (30), activity (15), stability (15), strategy logic (40), real AI use (35), risk management (30), reproducibility (25), and backtest and shadow test (20).
+
+So the target is a small, steady, positive return, a small drawdown, regular trades, and a clear AI and risk story.
+
+## 2. Dropped directions
+
+| Idea | Evidence | Result |
+|---|---|---|
+| Buy the Wallex lag behind global prices as a taker | lagcatcher live paper test and replay, 2026-10-21 20:42 to 10-22 09:16 UTC, 13 variants | No variant had a positive median with more than 2 trades. Best taker: 18 trades, median -0.20%, -49.6k. |
+| Same with a resting bid 0.5% to 0.8% below fair value | Same data | All variants negative (-5k to -31k after the rule fixes). |
+| One exchange (Bybit, OKX, KuCoin, Gate or Binance) as the fair value | `replay_venue.py`, `leadlag.py` | Almost the same results for each venue. All venues move with Binance within 0.25 s. |
+| Lag size | `leadlag.py`, 25 Binance moves of 5 bp or more in 1 s | Wallex USDT markets made 0% of the move after 1 s, 25% after 5 s, 58% after 30 s and 89% after 60 s. The lag is real, but the moves are small compared with the fees. |
+| Loops inside Wallex: coin TMN against coin USDT x USDTTMN | `ideas_scan.py`, 13.7 h, one sample per second | The loop was above the 0.73% taker cost 0% of the time. The best 1% of samples reached +0.33%. |
+| Hold USDT against the toman | 60 days of USDTTMN candles | +0.52% a day on average. 3-day windows: mean +1.49%, standard deviation 2.69%, worst -3.1%, best +8%, positive in 63%. This is a currency bet, not an edge. It stays an optional overlay. |
+
+Artifacts found in the lag test, now fixed in `lagcatcher/shadow.py` and `lagcatcher/engine.py`:
+
+* Bots on Wallex remove their bids for 0.1 to 2 s. A stop that sells on one low best bid sold up to 5% too low. The stop now needs fair value below the stop price, or a best bid below it for 5 s.
+* Thin books (ADAUSDT, SHIBTMN, TRXTMN) gave a wrong premium, because the premium used the mid of a wide book. The premium now uses only books with a spread of 0.3% or less. No entry happens when the spread is wider than 0.5%.
+* After a stop, a strategy bought the same market again at once, 12 times in 90 s. A 5-minute cooldown now follows each stop.
+
+## 3. Chosen direction: deep resting bids that catch sweeps
+
+A sweep is a large market sell that walks down the Wallex book in a few milliseconds. The price comes back within seconds. A bid that rests far below fair value fills in the sweep and sells back at fair value.
+
+Example, BTCTMN on 2026-10-22 at 07:03:53 UTC (recorded by lagcatcher):
+
+* 85 seller trades in 20 ms took the price from 22.01B to 21.66B toman, 1.5% below fair value (21.996B). One trade was 645M toman.
+* 2.6 s later, a buyer paid 22.018B.
+* A bid 1.3% below fair value filled and sold at fair value 1 s later: +0.82% after fees.
+
+### 3.1 Order-book replay
+
+Script: `replay_deep_bids.py`. Data: lagcatcher raw files, 2026-10-21 20:42 to 10-22 09:16 UTC (13.6 h).
+
+| Depth below fair value (TMN) | Trades | Win | Median | Net |
+|---|---|---|---|---|
+| 0.8% | 5 | 60% | +0.18% | +1.5k |
+| 0.9% | 4 | 75% | +0.34% | +5.8k |
+| 1.0% | 4 | 75% | +0.45% | +9.9k |
+| 1.1% | 3 | 100% | +0.61% | +18.4k |
+| 1.3% | 3 | 100% | +0.82% | +24.5k |
+| 1.5% | 2 | 100% | +0.96% | +19.1k |
+| 1.7% and deeper | 0 | - | - | 0 |
+
+The good fills were BTCTMN at 01:40, BTCTMN at 07:03 and PEPETMN at 09:13 UTC. The shallow bids also filled on real price moves in DOGEUSDT and ADAUSDT, and lost. In the replay the depth is set as a buffer: bid = fair value x (1 - 2 x maker fee - buffer). So the depth is the buffer + 0.5% on toman markets and the buffer + 0.2% on USDT markets.
+
+### 3.2 60-day candle study
+
+Script: `sweep_study.py`. Data: Wallex 1m OHLC for 18 markets and USDTTMN, and Binance 1m klines, 2026-08-22 to 2026-10-22. The script docstring gives the simulation rules. The two most important rules:
+
+* The bid uses the fair value of the minute before, so it does not see the future.
+* A fill needs a Wallex trade strictly below the bid. Such a trade proves that our higher bid filled first and in full.
+
+The study finds the same two BTCTMN sweeps as the order-book replay.
+
+Losing cases without filters, at a depth of 1.3%:
+
+| Fills | Count | Win | Mean |
+|---|---|---|---|
+| Binance moved less than 0.3% in the same minute | 316 | 79% | +0.41% |
+| Binance fell 0.3% or more in the same minute (a real move) | 85 | 39% | -0.55% |
+| Binance rose 0.3% or more | 21 | 81% | +0.84% |
+
+The worst day was 2026-10-01. At 05:36 UTC, USDTTMN fell from 253k to 235k toman in one minute (the market opened at 05:30 that day). All toman-market bids lost about -4.4%.
+
+Two filters remove these cases:
+
+* **Global filter:** no bid when Binance fell 0.3% or more in the last minute.
+* **FX filter:** no bid on toman markets when USDTTMN moved 0.5% or more in the last 5 minutes.
+
+Results with both filters:
+
+| Depth | Fills/day | Win | Median | Net/day | Max drawdown | Net/day, last 31 days |
+|---|---|---|---|---|---|---|
+| 0.8% | 20.7 | 68% | +0.18% | +18.0k | -90k | +16.4k |
+| 1.0% | 10.8 | 76% | +0.37% | +26.5k | -32k | +26.3k |
+| **1.3%** | **5.0** | **81%** | **+0.67%** | **+25.4k** | **-11k** | **+22.5k** |
+| 1.6% | 3.0 | 86% | +0.98% | +23.5k | -9k | +21.4k |
+| 2.0% | 1.4 | 86% | +1.40% | +16.3k | -6k | +15.7k |
+| 2.5% | 0.8 | 94% | +1.97% | +14.1k | -11k | +13.0k |
+
+Without filters, the 1.3% depth gave +16.3k a day with a maximum drawdown of -186k.
+
+Net per market at 1.3% with both filters (61 days): ADATMN +420k, BTCTMN +188k, ETHUSDT +166k, TRXTMN +120k, ETHTMN +118k, PEPEUSDT +116k, SHIBTMN +111k, ADAUSDT +83k. All 16 markets with fills were positive.
+
+**Funds limit.** An open bid locks its funds, so a 5M account keeps about 5 bids of 1M. Out-of-sample test: the 5 best markets of the first 30 days (ADATMN, ETHUSDT, TRXTMN, ETHTMN, PEPEUSDT) gave 2.7 fills a day, 78% win, median +0.64%, **+11.6k a day** and a maximum drawdown of -16k in the last 31 days. This is the realistic expectation at 1M per bid.
+
+### 3.3 Limits of the evidence
+
+* We chose the FX filter after we saw the 10-01 crash. It is partly fitted to that one event.
+* Both filters use information from the same minute as the fill. A live bot sees these moves within milliseconds, but a sweep and a shock can come in the same second.
+* Candles do not show the order of trades inside a minute. The order-book replay has only 3 good events so far.
+* Other bots can rest bids at the same price before us. Then they fill first. The candle study cannot see the queue.
+* The live tool keeps recording. Each new day of raw data makes the order-book check stronger.
+
+## 4. Market facts
+
+* Wallex USDTTMN closes every night from 23:30 to 11:30 Tehran time (20:00 to 08:00 UTC). On some days it opens earlier (05:30 UTC on 2026-10-01). During the close, coin TMN markets keep trading.
+* Median daytime spreads (2026-10-22, 05:00 to 09:00 UTC): BTCTMN 0.05%, BTCUSDT 0.06%, PEPETMN 0.07%, ETHTMN 0.12%, ETHUSDT 0.11%, SOLUSDT 0.17%, XRPUSDT 0.18%, DOGETMN 0.19%, BNBTMN 0.22%, TRXTMN 0.23%, SOLTMN 0.25%, XRPTMN 0.31%, DOGEUSDT 0.35%, BNBUSDT 0.36%, ADATMN 0.43%, PEPEUSDT 0.45%, ADAUSDT 0.50%, SHIBTMN 0.85%.
+* Trade flow (13.7 h): USDTTMN about 5.5B toman an hour, BTCTMN 4.9B, PEPETMN 4.2B, ETHTMN 3.5B, BTCUSDT 3.4B. ADAUSDT, DOGEUSDT and SHIBTMN have less than 0.2B an hour.
+* Binance bookTicker works from the server on port 443 (`data-stream.binance.vision`). Port 9443 times out. PEPE, SHIB, ADA and TRX have coarse Binance ticks (spread 3 to 22 bp), so their Binance mid jumps by half a tick.
