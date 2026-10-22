@@ -89,6 +89,17 @@ def cmd_replay(args: argparse.Namespace) -> None:
     print(f"replay took {time.time() - began:.0f} s, store {args.db}")
 
 
+def make_provider(ai_cfg: dict):
+    """Returns the model provider of `ai.provider`: "claude" or "openai_compat"."""
+    if ai_cfg["provider"] == "openai_compat":
+        from sweepbot.ai import openai_compat
+        return openai_compat.OpenAICompatProvider(ai_cfg)
+    if ai_cfg["provider"] == "claude":
+        from sweepbot.ai import claude
+        return claude.ClaudeProvider(ai_cfg)
+    raise SystemExit(f"unknown ai.provider {ai_cfg['provider']!r}")
+
+
 def cmd_run(args: argparse.Namespace) -> None:
     """Runs the bot on the live feeds."""
     cfg = _load(args.config)
@@ -105,11 +116,10 @@ def cmd_run(args: argparse.Namespace) -> None:
     store = store_mod.Store(cfg["bot"]["db_path"])
     supervisor = None
     if args.ai or cfg["ai"]["enabled"]:
-        from sweepbot.ai import claude
         from sweepbot.ai import supervisor as supervisor_mod
         holder: dict = {}
         supervisor = supervisor_mod.Supervisor(
-            cfg, claude.ClaudeProvider(cfg["ai"]), store,
+            cfg, make_provider(cfg["ai"]), store,
             equity_fn=lambda now: holder["runner"].bot.equity(now))
     os.makedirs(cfg["bot"]["out_dir"], exist_ok=True)
     runner = runner_mod.Runner(cfg, mode=args.mode, store=store, start_ts=time.time(),

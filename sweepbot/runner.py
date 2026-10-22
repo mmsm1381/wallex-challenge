@@ -118,7 +118,7 @@ class Runner:
             cfg, market=self.market, broker_=self.broker, store=store, mode=mode,
             risk=bot_risk, filters=self.filters, converter=converter, funder=funder,
             plan_source=plan_source,
-            allocate=cfg["allocation"]["enabled"] and supervisor is None,
+            allocate=cfg["allocation"]["enabled"],
             on_trade=self._on_trade if supervisor else None,
             on_hold_or_cut=self._on_hold_or_cut if supervisor else None)
         self.twin = (twin_mod.build_twin(cfg, market=self.market, store=store,

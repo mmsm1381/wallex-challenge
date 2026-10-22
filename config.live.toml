@@ -70,6 +70,10 @@ usdt_target_share = 0.0
 slippage_pct = 0.3
 
 [ai]
+# The model runs behind an OpenAI-compatible router (9router). The key is
+# AI_API_KEY in the environment (.env), never in this file.
+provider = "openai_compat"
+base_url = "https://9router.partanon.online/v1"
 enabled = false
 model = "claude-opus-5-5"
 timeout_s = 60.0

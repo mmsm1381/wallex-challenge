@@ -99,3 +99,39 @@ def test_replay_with_allocation_bids_on_the_only_eligible_market(tmp_path) -> No
     trades = run.store.rows("trades")
     assert [t["market"] for t in trades] == ["BTCTMN"]
     assert run.bot.allocation["ineligible"]["ADATMN"] == "global_stale"  # no ADA quotes
+
+
+def test_ai_plan_sets_depth_and_fx_risk_on_top_of_the_allocation(tmp_path) -> None:
+    """With allocation, an AI plan changes only depths, pause and fx_risk.
+
+    Scenario:
+        - Replay of a calm BTCTMN market up to t=150: BTCTMN is eligible.
+    Expected: a plan with BTCTMN at 2.0% gives a 2.0% BTCTMN slot. A plan
+    with fx_risk "high" gives no toman slot. A paused plan gives no slot.
+    """
+    # given
+    import asyncio
+    from sweepbot import config
+    from sweepbot import runner as runner_mod
+    from sweepbot import store as store_mod
+    from sweepbot.ai import schema
+    from test_sweep_replay import sweep_records
+    cfg = config.load_config(None)
+    cfg["premium"]["min_samples"] = 12
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["allocation"]["enabled"] = True
+    run = runner_mod.Runner(cfg, mode="replay", store=store_mod.Store(":memory:"),
+                            start_ts=0.0, with_twin=False)
+    asyncio.run(runner_mod.replay(run, [r for r in sweep_records() if r[0] < 150.0]))
+    deeper = schema.Plan(slots=[schema.SlotPlan(market="BTCTMN", depth_pct=2.0,
+                                                size_tmn=950_000.0)])
+
+    # when
+    with_depth = run.bot._wanted(deeper, None, 150.0)
+    fx_high = run.bot._wanted(schema.Plan(slots=[], fx_risk="high"), None, 150.0)
+    paused = run.bot._wanted(schema.Plan(slots=[], pause=True), None, 150.0)
+
+    # then
+    assert with_depth["BTCTMN"].depth_pct == 2.0
+    assert fx_high == {}
+    assert paused == {}

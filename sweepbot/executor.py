@@ -83,8 +83,9 @@ class Executor:
             funder: The `funding.UsdtFunder` of the bot, or None. Until it
                 is done, no new bid goes to a USDT market.
             allocate: True chooses the bid markets from all markets with
-                `allocation.allocate` instead of the plan list. The bot uses
-                it when no AI plan exists. The twin uses it too.
+                `allocation.allocate` instead of the plan list. An AI plan
+                then sets only pause, fx_risk and the depths of the markets
+                that it names. The twin uses the allocation too.
         """
         self.cfg = cfg
         self.market = market
@@ -174,7 +175,18 @@ class Executor:
         if plan.pause or halted or self.paused or self.force_flatten:
             return {}
         if self.allocate:
-            return self._allocated(now)
+            # The bot chooses the markets. An AI plan sets the depth of the
+            # markets that it names, and fx_risk "high" stops toman bids.
+            depths = {slot.market: slot.depth_pct for slot in plan.slots}
+            chosen = {}
+            for market, slot_plan in self._allocated(now).items():
+                if (plan.fx_risk == "high"
+                        and market_mod.quote_of(market) == market_mod.TMN):
+                    continue
+                if market in depths:
+                    slot_plan = slot_plan.model_copy(update={"depth_pct": depths[market]})
+                chosen[market] = slot_plan
+            return chosen
         wanted = {}
         for slot_plan in plan.slots:
             if (plan.fx_risk == "high"

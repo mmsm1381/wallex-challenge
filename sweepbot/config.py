@@ -85,7 +85,10 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
     "ai": {"enabled": False, "provider": "claude", "model": "claude-opus-5-5",
            "effort": "medium", "timeout_s": 60.0, "supervisor_every_s": 900.0,
            "max_failures": 2, "budget_usd": 50.0, "web_search": True,
-           "news_every_s": 3600.0},
+           "news_every_s": 3600.0,
+           # For provider "openai_compat" (an OpenAI-compatible router).
+           "base_url": "", "api_key_env": "AI_API_KEY", "json_mode": True,
+           "max_tokens": 4000, "price_in_per_mtok": 0.0, "price_out_per_mtok": 0.0},
 })
 
 
