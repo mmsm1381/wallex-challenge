@@ -89,7 +89,7 @@ timeout_s = 150.0
 # The router does not bill per token.
 price_in_per_mtok = 0.0
 price_out_per_mtok = 0.0
-enabled = false
+enabled = true
 supervisor_every_s = 900.0
 # Model calls stop when the cost in the ai_calls table reaches this limit.
 budget_usd = 50.0

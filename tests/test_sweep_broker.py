@@ -193,3 +193,23 @@ def test_bad_order_is_rejected() -> None:
 
     # then
     assert kinds(poll(paper)) == ["rejected"]
+
+
+def test_paper_order_ids_differ_between_two_runs() -> None:
+    """A restarted bot writes to the same store. Its paper ids must be new.
+
+    Before, each run started again at "twin-1", and the store refused the
+    order with "UNIQUE constraint failed: orders.id".
+    """
+    # given
+    cfg = config.load_config(None)
+    first = broker.PaperBroker(cfg, name="twin")
+    second = broker.PaperBroker(cfg, name="twin")
+
+    # when
+    first_id = asyncio.run(first.place_limit("BTCTMN", broker.BUY, 100.0, 1.0))
+    second_id = asyncio.run(second.place_limit("BTCTMN", broker.BUY, 100.0, 1.0))
+
+    # then
+    assert first_id != second_id
+    assert first_id.startswith("twin-")

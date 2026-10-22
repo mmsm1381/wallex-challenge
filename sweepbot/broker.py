@@ -27,6 +27,7 @@ is read (see `docs/IMPLEMENTATION_PLAN.md`).
 
 import dataclasses
 import itertools
+import time
 from collections.abc import Callable
 from typing import Protocol
 
@@ -143,6 +144,10 @@ def _taker_fill(levels: shadow.Levels, qty: float,
     return filled, (cost / filled if filled else 0.0)
 
 
+# One number per paper broker in this process.
+_RUNS = itertools.count(1)
+
+
 class PaperBroker:
     """Simulated broker on live or recorded Wallex books and trades."""
 
@@ -160,7 +165,8 @@ class PaperBroker:
         self._latency = cfg["paper"]["latency_s"]
         self._fees = {quote: config.fee_rates(quote, cfg)
                       for quote in (shadow.TMN, shadow.USDT)}
-        self._name = name
+        # The run part keeps the ids unique in the store across restarts.
+        self._name = f"{name}-{int(time.time())}{next(_RUNS)}"
         self._ids = itertools.count(1)
         self._orders: dict[str, Order] = {}
         self._books: dict[str, shadow.Book] = {}
