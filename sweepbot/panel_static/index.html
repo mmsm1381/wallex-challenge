@@ -167,6 +167,16 @@ function hms(ts){
   return d ? p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ':' + p2(d.getUTCSeconds()) : '—';
 }
 function hm(ts){ var t = hms(ts); return t === '—' ? t : t.slice(0, 5); }
+function utcHm(ts){
+  if (!isNum(ts)) return '';
+  var d = new Date(ts * 1000);
+  return p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ' UTC';
+}
+function when(ts){
+  if (!isNum(ts)) return 'Not yet';
+  var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return days[tehran(ts).getUTCDay()] + ' ' + dateStr(ts) + ' · Tehran (UTC+3:30) · ' + utcHm(ts);
+}
 function dateStr(ts){
   var d = tehran(ts);
   return d ? d.getUTCFullYear() + '-' + p2(d.getUTCMonth() + 1) + '-' + p2(d.getUTCDate()) : '';
@@ -261,13 +271,14 @@ function renderEndgame(d){
     ['end_ts', 'Challenge ends', 'Stop the bot. Export the decision log and the report.']
   ];
   var now = nowSrv(), nextDone = false;
-  $('endgame-h').textContent = 'Schedule' + (isNum(e.end_ts) ? ' · ends ' + dateStr(e.end_ts) : '') + ' (Tehran time)';
+  $('endgame-h').textContent = 'Schedule' + (isNum(e.end_ts) ? ' · ends ' + dateStr(e.end_ts) : '') + ' · times in Tehran (UTC+3:30)';
   var f = d.funding;
   if (f) {
     var fs = el('div', 'step' + (f.done ? ' done' : ' next')), ftop = el('div', 'top');
     ftop.appendChild(el('span', 't mono', hms(f.done_at || f.started_at)));
     ftop.appendChild(el('span', 'tag', f.done ? 'DONE' : (f.note === 'buying' ? 'BUYING' : 'WAITING')));
     fs.appendChild(ftop);
+    fs.appendChild(el('span', 'note mono', when(f.done_at || f.started_at)));
     fs.appendChild(el('span', '', 'Buy USDT on USDTTMN (start)', 'font-size:13px;font-weight:500'));
     fs.appendChild(el('span', 'note', f.done && isNum(f.usdt)
       ? 'Bought: holds ' + qty(f.usdt) + ' USDT ≈ ' + money(f.usdt_tmn) + ' toman (target ' + money(f.target_tmn) + ').'
@@ -285,6 +296,7 @@ function renderEndgame(d){
     top.appendChild(el('span', 't mono', hms(ts)));
     top.appendChild(el('span', 'tag', tag));
     s.appendChild(top);
+    s.appendChild(el('span', 'note mono', when(ts)));
     s.appendChild(el('span', '', df[1], 'font-size:13px;font-weight:500'));
     s.appendChild(el('span', 'note', df[2]));
     box.appendChild(s);
