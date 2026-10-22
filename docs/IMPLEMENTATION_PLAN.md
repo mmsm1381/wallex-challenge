@@ -18,9 +18,9 @@ Rules for every task:
 
 ## Milestone 1: paper sweep bot (about 1 day)
 
-- [ ] 1.1 `sweepbot/config.py` and `config.sweep.toml`: markets, default plan (5 markets, depth 1.3%), hard limits (DESIGN section 7), filter thresholds (section 6), mode. Tests: defaults load, TOML override merges, invalid values raise.
-- [ ] 1.2 `sweepbot/market.py`: wrap the fair value and premium of `lagcatcher.engine.Engine` without the paper strategies. Add the implied USDT rate (median coin TMN mid / coin USDT mid) for the nightly USDTTMN close. Tests: fair value of a toman market, implied rate when USDTTMN is frozen.
-- [ ] 1.3 `sweepbot/filters.py`: global drop filter and FX shock filter, with start and end events. Tests: a 0.3% Binance drop trips the global filter. A 0.5% USDTTMN move in 5 minutes trips the FX filter. The filters clear after their wait time.
+- [x] 1.1 `sweepbot/config.py` and `config.sweep.toml`: markets, default plan (5 markets, depth 1.3%), hard limits (DESIGN section 7), filter thresholds (section 6), mode. Tests: defaults load, TOML override merges, invalid values raise.
+- [x] 1.2 `sweepbot/market.py`: wrap the fair value and premium of `lagcatcher.engine.Engine` without the paper strategies. Add the implied USDT rate (median coin TMN mid / coin USDT mid) for the nightly USDTTMN close. Tests: fair value of a toman market, implied rate when USDTTMN is frozen.
+- [x] 1.3 `sweepbot/filters.py`: global drop filter and FX shock filter, with start and end events. Tests: a 0.3% Binance drop trips the global filter. A 0.5% USDTTMN move in 5 minutes trips the FX filter. The filters clear after their wait time.
 - [ ] 1.4 `sweepbot/broker.py`: `Broker` protocol and `PaperBroker` with the lagcatcher fill rules (strictly below for a bid, strictly above for a sell, or a book cross). Tests: the fill rules, part fills, cancel.
 - [ ] 1.5 `sweepbot/slots.py` and `sweepbot/exits.py`: the slot state machine of DESIGN section 5, the requote rule (0.2%), the order budget, the exit at fair value, the time limit and the cooldowns. Tests: one test per state change in the diagram.
 - [ ] 1.6 `sweepbot/risk.py`: hard limits, daily loss stop, equity floor, end-of-challenge schedule. Tests: one test per limit.

@@ -5,15 +5,16 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lagcatcher"
 version = "0.1.0"
-description = "Paper-trading shadow test of the Wallex lag edge"
+description = "Wallex sweep bot and the lagcatcher shadow test"
 requires-python = ">=3.10"
-dependencies = ["websockets>=13", "tomli>=2; python_version < '3.11'"]
+dependencies = ["websockets>=13", "tomli>=2; python_version < '3.11'",
+                "pydantic>=2", "anthropic>=0.70"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 
 [tool.setuptools]
-packages = ["lagcatcher"]
+packages = ["lagcatcher", "sweepbot", "sweepbot.ai"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
