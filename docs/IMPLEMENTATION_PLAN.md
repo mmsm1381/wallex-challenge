@@ -24,7 +24,7 @@ Rules for every task:
 - [ ] 1.4 `sweepbot/broker.py`: `Broker` protocol and `PaperBroker` with the lagcatcher fill rules (strictly below for a bid, strictly above for a sell, or a book cross). Tests: the fill rules, part fills, cancel.
 - [ ] 1.5 `sweepbot/slots.py` and `sweepbot/exits.py`: the slot state machine of DESIGN section 5, the requote rule (0.2%), the order budget, the exit at fair value, the time limit and the cooldowns. Tests: one test per state change in the diagram.
 - [ ] 1.6 `sweepbot/risk.py`: hard limits, daily loss stop, equity floor, end-of-challenge schedule. Tests: one test per limit.
-- [ ] 1.7 `sweepbot/store.py`: SQLite schema of DESIGN section 10. Tests: write and read back each table.
+- [x] 1.7 `sweepbot/store.py`: SQLite schema of DESIGN section 10. Tests: write and read back each table.
 - [ ] 1.8 `sweepbot/__main__.py`: `replay` mode on lagcatcher raw files. Done when: the replay of 2026-10-22 07:00 to 07:10 UTC gives one BTCTMN fill near 21.71B and an exit at fair value, and the replay of all recorded hours matches `replay_deep_bids.py` at the same depth within one trade per market.
 - [ ] 1.9 `paper` mode on live feeds, as a transient systemd unit next to lagcatcher (CPU 50%, memory 400M). Done when: 24 h paper run with no crash, and its fills match a replay of the same hours.
 
