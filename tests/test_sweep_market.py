@@ -102,3 +102,41 @@ def test_listeners_get_books_and_trades(tmp_path) -> None:
 
     # then
     assert seen == [("book", "BTCTMN"), ("trade", "BTCTMN", 2.0)]
+
+
+def test_saved_premiums_make_fair_value_ready_after_a_restart(tmp_path) -> None:
+    """The premium of a market survives a restart through the premium file.
+
+    Scenario:
+        - The first market state learns XRPTMN samples and saves them at t=10.
+        - A new market state (the restarted bot) loads the file at t=20.
+    Expected: the new state has a fair value at once, with the same premium.
+    """
+    # given
+    first = make_market(tmp_path)
+    first.engine.premiums["XRPTMN"].add(5.0, 0.01)
+    path = str(tmp_path / "premiums.json")
+    first.save_premiums(path, 10.0)
+    second = make_market(tmp_path)
+    second.on_book("USDTTMN", "bid", [(249999.0, 10.0)], 20.0)
+    second.on_book("USDTTMN", "ask", [(250001.0, 10.0)], 20.0)
+    second.on_quote("bybit", "XRP", 99.0, 101.0, 20.0)
+    second.on_quote("kucoin", "XRP", 99.0, 101.0, 20.0)
+
+    # when
+    loaded = second.load_premiums(path, 20.0)
+
+    # then
+    assert loaded == 1
+    assert second.fair_value("XRPTMN", 20.0) == pytest.approx(25_000_000.0 * math.exp(0.01))
+
+
+def test_missing_or_broken_premium_file_loads_nothing(tmp_path) -> None:
+    """A first start has no file. A broken file must not stop the bot."""
+    # given
+    state = make_market(tmp_path)
+    (tmp_path / "broken.json").write_text("{not json")
+
+    # when / then
+    assert state.load_premiums(str(tmp_path / "missing.json"), 1.0) == 0
+    assert state.load_premiums(str(tmp_path / "broken.json"), 1.0) == 0

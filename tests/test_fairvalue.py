@@ -1,5 +1,7 @@
 """Tests for the global fair value and the rolling Wallex premium."""
 
+import pytest
+
 from lagcatcher import fairvalue
 
 
@@ -89,3 +91,25 @@ def test_premium_value_drops_samples_older_than_window() -> None:
 
     # then
     assert value == 0.02
+
+
+def test_premium_export_and_load_keeps_only_samples_in_the_window() -> None:
+    """A restart loads the saved samples. Samples older than the window are dropped.
+
+    Scenario:
+        - The window is 100 s and 2 samples are needed.
+        - Samples at t=10, 50 and 90 are exported and loaded at t=140.
+    Expected: the t=10 sample is too old. The other 2 make the value ready.
+    """
+    # given
+    old = fairvalue.Premium(window_s=100.0, min_samples=2)
+    for ts, basis in ((10.0, 0.5), (50.0, 0.01), (90.0, 0.03)):
+        old.add(ts, basis)
+    new = fairvalue.Premium(window_s=100.0, min_samples=2)
+
+    # when
+    new.load(old.export(), now=140.0)
+
+    # then
+    assert new.export() == [(50.0, 0.01), (90.0, 0.03)]
+    assert new.value(140.0) == pytest.approx(0.02)

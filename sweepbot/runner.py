@@ -492,6 +492,14 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     out_dir = pathlib.Path(cfg["bot"]["out_dir"])
     state_path, control_path = str(out_dir / "state.json"), str(out_dir / "control.json")
 
+    premium_path = cfg["bot"]["premium_file"] or str(pathlib.Path(cfg["bot"]["out_dir"])
+                                                     / "premiums.json")
+    ready = market.load_premiums(premium_path, time.time())
+    log.info("premiums loaded from %s: %d markets ready", premium_path, ready)
+
+    async def save_premiums(now: float) -> None:
+        market.save_premiums(premium_path, now)
+
     await runner.refresh_balances(time.time())
 
     async def panel_io(now: float) -> None:
@@ -501,6 +509,7 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     tasks += [asyncio.create_task(every(cfg["bot"]["timer_s"], runner.tick)),
               asyncio.create_task(every(1.0, panel_io)),
               asyncio.create_task(every(cfg["bot"]["balances_every_s"], runner.refresh_balances)),
+              asyncio.create_task(every(cfg["bot"]["premium_save_s"], save_premiums)),
               asyncio.create_task(every(cfg["premium"]["sample_s"], premium)),
               asyncio.create_task(every(cfg["bot"]["status_every_s"], status)),
               asyncio.create_task(every(1.0, runner.ai_step))]
@@ -511,5 +520,6 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+    market.save_premiums(premium_path, time.time())
     await runner.shutdown()
     log.info("sweepbot stopped")

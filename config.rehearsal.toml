@@ -15,6 +15,10 @@ mode = "paper"
 out_dir = "data/sweepbot-rehearsal"
 db_path = "data/sweepbot-rehearsal.db"
 
+# Both configs share one premium file, so the switch from paper to live
+# needs no warm-up of the fair values.
+premium_file = "data/premiums.json"
+
 [venues]
 # This config runs on the server outside Iran. It reaches all 5 venues.
 # From Iran, OKX and Binance are blocked: use bybit, kucoin and gate there.

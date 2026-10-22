@@ -86,6 +86,21 @@ class Premium:
         self._samples.append((ts, log_basis))
         self._changed = True
 
+    def export(self) -> list[tuple[float, float]]:
+        """Returns the samples as (ts, log basis) pairs, oldest first."""
+        return list(self._samples)
+
+    def load(self, samples: list, now: float) -> None:
+        """Adds saved samples that are still inside the window at `now`.
+
+        A restarted bot uses this, so that the premium is ready at once and
+        does not need a new warm-up.
+        """
+        for ts, basis in sorted((float(t), float(b)) for t, b in samples):
+            if now - ts <= self._window:
+                self._samples.append((ts, basis))
+        self._changed = True
+
     def value(self, now: float) -> float | None:
         """Returns the median premium in the window, or None before warm-up."""
         while self._samples and now - self._samples[0][0] > self._window:

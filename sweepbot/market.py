@@ -13,11 +13,16 @@ what the sweep bot needs on top:
 """
 
 import copy
+import json
+import logging
+import os
 import statistics
 from collections.abc import Callable
 
 from lagcatcher import engine
 from lagcatcher import shadow
+
+log = logging.getLogger(__name__)
 
 TMN = shadow.TMN
 USDT = shadow.USDT
@@ -176,6 +181,39 @@ class Market:
             return amount_quote
         rate, _ = self.usdt_rate(now)
         return amount_quote * rate if rate else None
+
+    def save_premiums(self, path: str, now: float) -> None:
+        """Writes the premium samples of all markets to `path` in one step.
+
+        A restart (an update, a crash, or the switch from paper to live)
+        loads them with `load_premiums`, so no market needs a new warm-up.
+        """
+        data = {"ts": now, "premiums": {market: premium.export()
+                                        for market, premium in self.engine.premiums.items()}}
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as premium_file:
+            json.dump(data, premium_file)
+        os.replace(tmp, path)
+
+    def load_premiums(self, path: str, now: float) -> int:
+        """Loads saved premium samples that are still inside the window.
+
+        A missing or broken file loads nothing.
+
+        Returns:
+            The number of markets whose premium is ready after the load.
+        """
+        try:
+            with open(path, encoding="utf-8") as premium_file:
+                saved = json.load(premium_file)["premiums"]
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            log.info("no premium file loaded from %s: %s", path, type(error).__name__)
+            return 0
+        for market, samples in saved.items():
+            if market in self.engine.premiums:
+                self.engine.premiums[market].load(samples, now)
+        return sum(1 for premium in self.engine.premiums.values()
+                   if premium.value(now) is not None)
 
     def close(self) -> None:
         """Flushes and closes the raw files."""
