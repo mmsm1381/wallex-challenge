@@ -137,7 +137,7 @@ class Supervisor:
             error = f"provider error: {exc}"
         latency = time.monotonic() - start
         self._store.add_ai_call(
-            ts=now, job=job, model=self._provider.model,
+            ts=now, job=job, model=getattr(self._provider, "last_model", self._provider.model),
             input_tokens=result.input_tokens if result else 0,
             output_tokens=result.output_tokens if result else 0,
             cost_usd=result.cost_usd if result else 0.0,

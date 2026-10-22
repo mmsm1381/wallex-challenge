@@ -14,15 +14,20 @@ CFG = {"provider": "openai_compat", "base_url": "http://router.test/v1/",
 
 
 class FakeTransport:
-    """Returns scripted answer texts and records the requests."""
+    """Returns scripted answer texts and records the requests.
 
-    def __init__(self, *texts: str) -> None:
+    An exception in the script is raised instead of an answer.
+    """
+
+    def __init__(self, *texts) -> None:
         self.texts = list(texts)
         self.calls = []
 
     def __call__(self, url, headers, body, timeout):
         self.calls.append((url, headers, body, timeout))
         text = self.texts.pop(0)
+        if isinstance(text, Exception):
+            raise text
         return {"choices": [{"message": {"content": text}}],
                 "usage": {"prompt_tokens": 1000, "completion_tokens": 100}}
 
@@ -57,6 +62,7 @@ def test_plan_answer_is_parsed_and_the_request_is_openai_shaped(monkeypatch) -> 
     assert url == "http://router.test/v1/chat/completions"
     assert headers["Authorization"] == "Bearer test-key"
     assert body["model"] == "router-model"
+    assert body["stream"] is False
     assert body["response_format"] == {"type": "json_object"}
 
 
@@ -106,3 +112,38 @@ def test_news_has_no_web_search_and_normal_risk(monkeypatch) -> None:
     # then
     assert result.value.risk == "normal"
     assert transport.calls == []
+
+
+def test_fallback_model_answers_when_the_main_model_fails(monkeypatch) -> None:
+    """The main model gives HTTP 503. The first fallback model answers.
+
+    Expected: the answer of the fallback, and `last_model` names it.
+    """
+    # given
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    good = json.dumps({"decision": "hold", "reason": "price is back near fair value"})
+    transport = FakeTransport(provider.ProviderError("HTTP 503: busy"), good)
+    cfg = dict(CFG, model="cx/main", fallback_models=["gemini/backup"])
+    adapter = openai_compat.OpenAICompatProvider(cfg, transport=transport)
+
+    # when
+    result = adapter.hold_or_cut({"market": "BTCTMN"})
+
+    # then
+    assert result.value.decision == "hold"
+    assert [call[2]["model"] for call in transport.calls] == ["cx/main", "gemini/backup"]
+    assert adapter.last_model == "gemini/backup"
+
+
+def test_all_models_failing_raises_one_error_with_each_reason(monkeypatch) -> None:
+    """Main and fallback fail: the supervisor gets one error and keeps its plan."""
+    # given
+    monkeypatch.setenv("AI_API_KEY", "test-key")
+    transport = FakeTransport(provider.ProviderError("HTTP 429"),
+                              provider.ProviderError("timeout"))
+    cfg = dict(CFG, model="cx/main", fallback_models=["gemini/backup"])
+    adapter = openai_compat.OpenAICompatProvider(cfg, transport=transport)
+
+    # when / then
+    with pytest.raises(provider.ProviderError, match="cx/main: HTTP 429"):
+        adapter.propose_plan({})

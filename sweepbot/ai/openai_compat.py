@@ -10,6 +10,10 @@ Settings (`ai` section of the config):
 * `provider = "openai_compat"`
 * `base_url`: the router address, such as "http://127.0.0.1:20128/v1".
 * `model`: the model name of the router.
+* `fallback_models`: models to try in order when the main model fails
+  (an HTTP error, a timeout, or no valid JSON after the retry).
+* `request_timeout_s`: the timeout of one HTTP request. Keep the sum over
+  all models below `timeout_s` of the supervisor.
 * `api_key_env`: the environment variable with the key (default
   "AI_API_KEY"). The key never goes to a log.
 * `json_mode`: true sends `response_format: {"type": "json_object"}`.
@@ -112,6 +116,8 @@ class OpenAICompatProvider:
         if not self._key:
             raise RuntimeError(f"{key_env} is not set")
         self._send = transport or self._http
+        # The model that gave the last answer (the main model or a fallback).
+        self.last_model = self.model
 
     def _http(self, url: str, headers: dict, body: dict, timeout: float) -> dict:
         """Sends one request. Errors become `ProviderError` without the key."""
@@ -128,7 +134,21 @@ class OpenAICompatProvider:
             raise provider.ProviderError(f"{type(error).__name__}: {error}") from None
 
     def _ask(self, instruction: str, data, output: type[pydantic.BaseModel]):
-        """Sends one job and returns its typed result. Retries once on bad JSON."""
+        """Asks the main model, then each fallback model, until one answers."""
+        errors = []
+        for model in [self.model] + list(self._cfg.get("fallback_models") or []):
+            try:
+                result = self._ask_model(model, instruction, data, output)
+            except provider.ProviderError as error:
+                errors.append(f"{model}: {error}")
+                continue
+            self.last_model = model
+            return result
+        raise provider.ProviderError("all models failed: " + " | ".join(errors)[:1000])
+
+    def _ask_model(self, model: str, instruction: str, data,
+                   output: type[pydantic.BaseModel]):
+        """Sends one job to `model` and returns its typed result. Retries once on bad JSON."""
         user = (instruction + "\n\nAnswer with one JSON object that follows this "
                 "JSON schema:\n" + json.dumps(output.model_json_schema())
                 + "\n\nData:\n" + json.dumps(data, sort_keys=True, default=str))
@@ -138,11 +158,13 @@ class OpenAICompatProvider:
                    "Content-Type": "application/json"}
         tokens_in = tokens_out = 0
         for attempt in range(2):
-            body = {"model": self.model, "messages": messages,
+            # Some routers stream by default. The adapter reads one JSON body.
+            body = {"model": model, "messages": messages, "stream": False,
                     "max_tokens": int(self._cfg.get("max_tokens", 4000))}
             if self._cfg.get("json_mode", True):
                 body["response_format"] = {"type": "json_object"}
-            answer = self._send(self._url, headers, body, float(self._cfg["timeout_s"]))
+            timeout = float(self._cfg.get("request_timeout_s") or self._cfg["timeout_s"])
+            answer = self._send(self._url, headers, body, timeout)
             usage = answer.get("usage") or {}
             tokens_in += int(usage.get("prompt_tokens") or 0)
             tokens_out += int(usage.get("completion_tokens") or 0)

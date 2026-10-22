@@ -88,6 +88,7 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
            "news_every_s": 3600.0,
            # For provider "openai_compat" (an OpenAI-compatible router).
            "base_url": "", "api_key_env": "AI_API_KEY", "json_mode": True,
+           "fallback_models": [], "request_timeout_s": 30.0,
            "max_tokens": 4000, "price_in_per_mtok": 0.0, "price_out_per_mtok": 0.0},
 })
 

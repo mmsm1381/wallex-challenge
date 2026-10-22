@@ -74,9 +74,22 @@ slippage_pct = 0.3
 # AI_API_KEY in the environment (.env), never in this file.
 provider = "openai_compat"
 base_url = "https://9router.partanon.online/v1"
+# GPT first, Gemini as backup (tested 2026-10-22 15:55 UTC on a real plan):
+# - cx/gpt-6.1-sol failed: the router's Codex login is invalid (HTTP 401).
+#   It stays first, so it is used again when the router owner fixes it.
+#   A failure costs under 1 s.
+# - ag/gpt-oss-120b-medium: OK, about 29 s.
+# - ag/gemini-3-flash: OK, about 1.5 s.
+# - ag/gemini-3.8-flash-high: OK, about 32 s.
+model = "cx/gpt-6.1-sol"
+fallback_models = ["ag/gpt-oss-120b-medium", "ag/gemini-3-flash", "ag/gemini-3.8-flash-high"]
+request_timeout_s = 40.0
+# The executor never waits for a model, so a long job timeout is safe.
+timeout_s = 150.0
+# The router does not bill per token.
+price_in_per_mtok = 0.0
+price_out_per_mtok = 0.0
 enabled = false
-model = "claude-opus-5-5"
-timeout_s = 60.0
 supervisor_every_s = 900.0
 # Model calls stop when the cost in the ai_calls table reaches this limit.
 budget_usd = 50.0
