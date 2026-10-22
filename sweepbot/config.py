@@ -32,6 +32,8 @@ MODES = ("live", "paper", "replay")
 DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
     "bot": {"mode": "paper", "out_dir": "data/sweepbot",
             "db_path": "data/sweepbot.db", "timer_s": 0.1,
+            # Price ticks and quantity steps per market. "" turns rounding off.
+            "market_rules": "research/wallex_markets.json",
             "status_every_s": 60.0},
     # The 5 best markets of the first 30 days of the candle study. They were
     # tested out of sample on the last 31 days (RESEARCH.md section 3.2).

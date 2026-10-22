@@ -29,6 +29,7 @@ python3 -I research/scripts/sweep_study.py research/data/sweep 0.8,1.0,1.3,1.6,2
 | `scripts/leadlag.py` | Event study: share of each Binance move that other venues and Wallex made after 0.25 to 60 s | lagcatcher raw folder |
 | `scripts/ideas_scan.py` | Loops inside Wallex (coin TMN vs coin USDT x USDTTMN) and trade flow per market | lagcatcher raw folder |
 | `scripts/wallex_api_probe.py` | Read-only probe of the Wallex API for milestone 2: markets, headers, account answers, docs | `WALLEX_API_KEY` (optional) |
+| `scripts/wallex_docs_fetch.py` | Downloads the Wallex API documentation (developers.wallex.ir) as one Markdown file | none |
 | `scripts/spreads.py` | Time-weighted Wallex spread per market | lagcatcher raw folder |
 | `scripts/datacheck.py` | Coverage, gaps and crossed books of the raw files | lagcatcher raw folder |
 | `scripts/trace_market.py` | Prints book, venue mids, premium and gap of one market during a replay | lagcatcher raw folder |

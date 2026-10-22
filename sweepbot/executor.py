@@ -24,6 +24,7 @@ from sweepbot import exits
 from sweepbot import filters as filters_mod
 from sweepbot import market as market_mod
 from sweepbot import risk as risk_mod
+from sweepbot import rules as rules_mod
 from sweepbot import slots
 from sweepbot import store as store_mod
 from sweepbot.ai import schema
@@ -79,7 +80,7 @@ class Executor:
         self.on_hold_or_cut = on_hold_or_cut
         limits = cfg["limits"]
         self.budget = slots.OrderBudget(limits["orders_per_10s"], limits["safety_reserve"])
-        self.ticks: dict = cfg.get("price_ticks", {})
+        self.rules = rules_mod.load_rules(cfg["bot"]["market_rules"])
         self.slots: dict[str, slots.Slot] = {}
         self._owner: dict[str, slots.Slot] = {}
         self._slot_plan: dict[str, schema.SlotPlan] = {}
@@ -159,8 +160,8 @@ class Executor:
         for market in sorted(set(self.slots) | set(wanted)):
             slot = self.slots.get(market)
             if slot is None:
-                slot = self.slots[market] = slots.Slot(market, self.cfg,
-                                                       self.ticks.get(market, 0.0))
+                rule = self.rules.get(market, rules_mod.MarketRule())
+                slot = self.slots[market] = slots.Slot(market, self.cfg, rule.price_tick)
             slot_plan = wanted.get(market)
             was_busy = slot.busy()
             view = self._view(market, slot, slot_plan, now, open_count,
@@ -216,7 +217,8 @@ class Executor:
                 rate, _ = self.market.usdt_rate(now)
                 size_quote = slot_plan.size_tmn / rate if rate else None
             if size_quote:
-                qty_for = lambda price, size=size_quote: size / price
+                rule = self.rules.get(market, rules_mod.MarketRule())
+                qty_for = lambda price, size=size_quote, rule=rule: rule.order_qty(size, price)
         return slots.SlotView(
             fv=self.market.fair_value(market, now),
             best_bid=book.best_bid() if book else None,
