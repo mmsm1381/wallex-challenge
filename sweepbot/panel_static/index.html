@@ -167,15 +167,10 @@ function hms(ts){
   return d ? p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ':' + p2(d.getUTCSeconds()) : '—';
 }
 function hm(ts){ var t = hms(ts); return t === '—' ? t : t.slice(0, 5); }
-function utcHm(ts){
-  if (!isNum(ts)) return '';
-  var d = new Date(ts * 1000);
-  return p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()) + ' UTC';
-}
 function when(ts){
   if (!isNum(ts)) return 'Not yet';
   var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return days[tehran(ts).getUTCDay()] + ' ' + dateStr(ts) + ' · Tehran (UTC+3:30) · ' + utcHm(ts);
+  return days[tehran(ts).getUTCDay()] + ' ' + dateStr(ts) + ' · Tehran (UTC+3:30)';
 }
 function dateStr(ts){
   var d = tehran(ts);

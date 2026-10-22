@@ -85,6 +85,9 @@ class Runner:
         # The last wallet read for the panel: {asset: {"total", "locked"}}.
         self.balances: dict | None = None
         self.balances_ts: float | None = None
+        # The wallet valued at the time of the last read. The panel and the
+        # equity change only at each read (`bot.balances_every_s`).
+        self.wallet: dict | None = None
         self._last_plan_call = -MIN_PLAN_GAP_S
         if supervisor is None:
             plan = validator.default_plan(cfg)
@@ -237,7 +240,7 @@ class Runner:
                         "valid_until": None,
                         "slots": [s.model_dump() for s in plan.slots]}
         usdt_exposure = bot._usdt_exposure_tmn(now)
-        wallet = self.wallet_state(now)
+        wallet = self.wallet
         if wallet and wallet["total_tmn"]:
             usdt_share = 100 * wallet["usdt_tmn"] / wallet["total_tmn"]
         else:
@@ -277,9 +280,11 @@ class Runner:
         }
 
     async def refresh_balances(self, now: float) -> None:
-        """Reads the wallet of the bot's broker for the panel.
+        """Reads the wallet of the bot's broker and values it.
 
-        A failed read keeps the last value. The panel shows its age.
+        The values (mid and if sold now at the best bids) are kept until the
+        next read, so the panel and the equity change once per read. A failed
+        read keeps the last value. The panel shows its age.
         """
         try:
             self.balances = await self.bot.broker.balances_detail()
@@ -287,7 +292,7 @@ class Runner:
         except RuntimeError as error:
             log.warning("balance read failed: %s", error)
             return
-        wallet = self.wallet_state(now)
+        wallet = self.wallet = self.wallet_state(now)
         complete = wallet is not None and all(a["tmn"] is not None for a in wallet["assets"])
         self.bot.wallet_tmn = wallet["total_tmn"] if complete else None
 

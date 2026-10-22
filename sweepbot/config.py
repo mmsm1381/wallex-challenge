@@ -36,8 +36,8 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
             # Price ticks and quantity steps per market. "" turns rounding off.
             "market_rules": "research/wallex_markets.json",
             "status_every_s": 60.0,
-            # How often the panel wallet is read from the exchange.
-            "balances_every_s": 10.0},
+            # How often the wallet is read and valued (panel and equity).
+            "balances_every_s": 15.0},
     # The 5 best markets of the first 30 days of the candle study. They were
     # tested out of sample on the last 31 days (RESEARCH.md section 3.2).
     # The depth depends on the quote currency (RESEARCH.md section 3.4): the
