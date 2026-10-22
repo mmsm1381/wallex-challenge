@@ -22,11 +22,13 @@ from collections.abc import Iterable
 
 from lagcatcher import feeds
 from sweepbot import broker
+from sweepbot import endgame
 from sweepbot import executor
 from sweepbot import filters as filters_mod
 from sweepbot import market as market_mod
 from sweepbot import report
 from sweepbot import risk as risk_mod
+from sweepbot import rules as rules_mod
 from sweepbot import store as store_mod
 from sweepbot import twin as twin_mod
 from sweepbot.ai import validator
@@ -83,9 +85,16 @@ class Runner:
             plan_source = lambda now: (plan, plan_id)
         else:
             plan_source = supervisor.active_plan
+        bot_risk = risk_mod.RiskGuard(cfg, start_ts)
+        rule_set = rules_mod.load_rules(cfg["bot"]["market_rules"])
+        converter = endgame.UsdtConverter(
+            convert_at=bot_risk.usdt_convert_at(), market=self.market,
+            broker_=self.broker,
+            rule=rule_set.get(endgame.MARKET, rules_mod.MarketRule()),
+            slippage_pct=cfg["slots"]["cut_slippage_pct"], store=store, mode=mode)
         self.bot = executor.Executor(
             cfg, market=self.market, broker_=self.broker, store=store, mode=mode,
-            risk=risk_mod.RiskGuard(cfg, start_ts), filters=self.filters,
+            risk=bot_risk, filters=self.filters, converter=converter,
             plan_source=plan_source,
             on_trade=self._on_trade if supervisor else None,
             on_hold_or_cut=self._on_hold_or_cut if supervisor else None)

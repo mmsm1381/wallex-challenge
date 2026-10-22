@@ -169,11 +169,22 @@ class RiskGuard:
         """Returns True when a position is older than the hold limit."""
         return now - entry_ts >= self.limits["max_hold_s"]
 
-    def must_flatten(self, now: float) -> bool:
-        """Returns True from the stop time before the end: sell all coins."""
+    def flatten_at(self) -> float | None:
+        """Returns the time from which the bot stops bids and sells all coins.
+
+        It is `stop_before_end_s` before the end, and at the latest 30
+        minutes before the USDT sale. Coins of USDT markets give USDT when
+        they are sold, so they must be sold before the USDT sale.
+        """
         if self.end_ts is None:
-            return False
-        return now >= self.end_ts - self.limits["stop_before_end_s"]
+            return None
+        return min(self.end_ts - self.limits["stop_before_end_s"],
+                   self.usdt_convert_at() - _CONVERT_BEFORE_CLOSE_S)
+
+    def must_flatten(self, now: float) -> bool:
+        """Returns True from `flatten_at`: no new bids, sell all coins."""
+        flatten_at = self.flatten_at()
+        return flatten_at is not None and now >= flatten_at
 
     def usdt_convert_at(self) -> float | None:
         """Returns the time to sell all USDT for toman, or None without an end.

@@ -61,6 +61,7 @@ Rules for every task:
 - [ ] 4.1 Rehearsal: live mode with the smallest allowed size for 12 h. Done when: no errors, all orders known, logs complete.
 - [ ] 4.2 Challenge: live mode for 3 days. A team member checks the daily report every day.
 - [ ] 4.3 End of the challenge: all coins sold, all USDT converted to toman before the last USDTTMN close.
+  * Status 2026-10-22: code done (`sweepbot/endgame.py`, `RiskGuard.flatten_at`). Set `challenge.end_utc` in the config. Check it in the rehearsal (4.1) with an end time inside the rehearsal.
 
 ## Milestone 5: deliverables
 

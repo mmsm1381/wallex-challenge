@@ -272,4 +272,4 @@ Not done, and why:
 * Tasks 0.3, 0.4, 1.8 check, 1.9 run, 3.8: they need the server and the raw files. This session had no server access.
 * Milestone 2: the cloud container cannot reach `api.wallex.ir` (proxy answer 403). The Wallex API documentation was not read, so `WallexBroker` is not written. AGENTS.md forbids guessed endpoints.
 * Task 3.2 manual call: no `ANTHROPIC_API_KEY` in the session.
-* The USDT conversion at the end of the challenge is in the risk guard schedule (`usdt_convert_at`), but no code sells USDT yet. It needs the live broker.
+* The USDT conversion at the end of the challenge is built (`sweepbot/endgame.py`). The coins are sold before it.

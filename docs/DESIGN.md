@@ -69,6 +69,7 @@ The sweep bot is a new package `sweepbot/` in this repo. It imports the parts of
 | `sweepbot/broker.py` | `Broker` protocol, `PaperBroker` (lagcatcher fill rules), `WallexBroker` (REST) | `lagcatcher.shadow` fill rules |
 | `sweepbot/wallex_broker.py` | `WallexBroker` on the Wallex REST API. Polls the open orders every second. | `docs/WALLEX_API.md` |
 | `sweepbot/rules.py` | Price tick, quantity step and minimum value per market | `research/wallex_markets.json` |
+| `sweepbot/endgame.py` | USDT sale at the end of the challenge | new |
 | `sweepbot/store.py` | SQLite schema and writes | new |
 | `sweepbot/ai/provider.py` | `ModelProvider` protocol, so that any model can fill the AI jobs. `FakeProvider` for tests. | new |
 | `sweepbot/ai/claude.py` | Claude adapter (`anthropic` SDK, structured output, web search) | new |
@@ -132,7 +133,7 @@ The config sets these limits. No plan can change them. The validator clamps a pl
 | Time limit of a position | 15 minutes |
 | Daily loss stop | -1.5% of the equity at the start of the day (Tehran time). Then cancel all bids until the next day. |
 | Equity floor | -2.5% from the peak, or -4% from the start. Then cancel all bids and alert the team. |
-| End of challenge | Stop new bids 2 h before the end. Sell all coins. Convert USDT to toman before the last USDTTMN close (23:30 Tehran). |
+| End of challenge | Stop new bids and sell all coins 2 h before the end, and at the latest 30 minutes before the USDT sale. Sell all USDT on USDTTMN from 30 minutes before the last USDTTMN close (23:30 Tehran, 20:00 UTC). `sweepbot/endgame.py` sends the USDT sale and replaces an order that stays open for 30 s. |
 
 ## 8. AI part
 

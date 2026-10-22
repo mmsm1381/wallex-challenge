@@ -306,12 +306,12 @@ def test_cancel_unknown_cancels_only_foreign_orders_of_bot_markets() -> None:
 
 
 def test_balances_reads_value_per_asset() -> None:
-    """GET /v1/account/balances gives a dict per asset with string values."""
+    """GET /v1/account/balances gives value and locked. Free = value - locked."""
     # given
     wallex, transport, _, _ = make()
     transport.add("GET", "/v1/account/balances", (200, {"success": True, "result": {"balances": {
         "TMN": {"asset": "TMN", "value": "309969", "locked": "0"},
-        "USDT": {"asset": "USDT", "value": "0.5", "locked": "0"}}}}))
+        "USDT": {"asset": "USDT", "value": "2.5", "locked": "2"}}}}))
 
     # when
     balances = run(wallex.balances())

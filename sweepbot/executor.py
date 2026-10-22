@@ -52,7 +52,8 @@ class Executor:
                  risk: risk_mod.RiskGuard, filters: filters_mod.Filters,
                  plan_source: PlanSource,
                  on_trade: Callable[[dict], None] | None = None,
-                 on_hold_or_cut: Callable[[dict], None] | None = None) -> None:
+                 on_hold_or_cut: Callable[[dict], None] | None = None,
+                 converter=None) -> None:
         """Wires the parts.
 
         Args:
@@ -67,6 +68,7 @@ class Executor:
             on_trade: Called with each closed trade dict.
             on_hold_or_cut: Called with the context of a position that has
                 no exit fill after `slots.hold_or_cut_after_s`.
+            converter: The `endgame.UsdtConverter` of the bot, or None.
         """
         self.cfg = cfg
         self.market = market
@@ -78,6 +80,7 @@ class Executor:
         self.plan_source = plan_source
         self.on_trade = on_trade
         self.on_hold_or_cut = on_hold_or_cut
+        self.converter = converter
         limits = cfg["limits"]
         self.budget = slots.OrderBudget(limits["orders_per_10s"], limits["safety_reserve"])
         self.rules = rules_mod.load_rules(cfg["bot"]["market_rules"])
@@ -180,6 +183,8 @@ class Executor:
         for market in [m for m, s in self.slots.items() if not s.busy() and m not in wanted
                        and s.state == slots.IDLE]:
             del self.slots[market]
+        if self.converter is not None:
+            await self.converter.step(now)
 
     def _view(self, market: str, slot: slots.Slot, slot_plan: schema.SlotPlan | None,
               now: float, open_count: int, usdt_exposure: float, equity: float,

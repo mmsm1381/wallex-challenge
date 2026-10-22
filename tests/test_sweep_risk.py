@@ -328,6 +328,26 @@ def test_end_of_challenge_halts_bids_and_flattens() -> None:
     assert bid(guard, now=start) == "end_of_challenge"
 
 
+def test_end_after_the_nightly_close_flattens_before_the_usdt_sale() -> None:
+    """End at 23:00 UTC: USDTTMN closes at 20:00, the USDT sale is at 19:30.
+
+    Coins of USDT markets give USDT when they are sold. So the bot must sell
+    its coins before the USDT sale: from 19:00, not from 21:00 (end - 2 h).
+    """
+    # given
+    guard = make_guard("2026-11-04T23:00:00Z")
+
+    # when
+    convert_at = guard.usdt_convert_at()
+    flatten_at = guard.flatten_at()
+
+    # then
+    assert convert_at == utc("2026-11-04T19:30:00Z")
+    assert flatten_at == utc("2026-11-04T19:00:00Z")
+    assert guard.must_flatten(utc("2026-11-04T18:59:59Z")) is False
+    assert guard.halted(utc("2026-11-04T19:00:00Z")) == "end_of_challenge"
+
+
 def test_must_flatten_is_false_without_end() -> None:
     """An empty end_utc turns the end schedule off."""
     # given
