@@ -15,8 +15,9 @@ out_dir = "data/sweepbot-live"
 db_path = "data/sweepbot-live.db"
 
 [venues]
-# The server outside Iran also reaches Binance (port 443) and OKX.
-enabled = ["bybit", "kucoin", "gate"]
+# This config runs on the server outside Iran. It reaches all 5 venues.
+# From Iran, OKX and Binance are blocked: use bybit, kucoin and gate there.
+enabled = ["bybit", "okx", "kucoin", "gate", "binance"]
 max_quote_age_s = 10.0
 min_venues = 2
 
