@@ -106,6 +106,10 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
 </section>
 <div class="cols">
 <div class="main">
+  <section class="card" aria-labelledby="wallet-h">
+    <div class="row"><h2 id="wallet-h">Wallet</h2><span class="note" id="walletNote"></span></div>
+    <div class="scroll"><table style="min-width:520px"><thead><tr><th>Asset</th><th class="r">Amount</th><th class="r">Locked in orders</th><th class="r">Toman value (mid)</th><th class="r">If sold now</th></tr></thead><tbody id="wallet"></tbody></table></div>
+  </section>
   <section class="card" aria-labelledby="slots-h">
     <div class="row"><h2 id="slots-h">Slots</h2><span class="note" id="slotsNote"></span></div>
     <div class="scroll"><table style="min-width:760px"><thead><tr><th>Market</th><th>State</th><th class="r">Depth</th><th class="r">Fair value</th><th class="r">Our order</th><th class="r">Spread</th><th class="r">Age</th><th>Filter</th></tr></thead><tbody id="slots"></tbody></table></div>
@@ -117,10 +121,6 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
   <section class="card" aria-labelledby="log-h"><h2 id="log-h">Decision log</h2><div id="logs"></div></section>
 </div>
 <aside>
-  <section class="card" aria-labelledby="wallet-h">
-    <div class="row"><h2 id="wallet-h">Wallet</h2><span class="note" id="walletNote"></span></div>
-    <div class="scroll"><table><thead><tr><th>Asset</th><th class="r">Amount</th><th class="r">Locked in orders</th><th class="r">Toman value (mid)</th><th class="r">If sold now</th></tr></thead><tbody id="wallet"></tbody></table></div>
-  </section>
   <section class="card" aria-labelledby="plan-h">
     <div class="row"><h2 id="plan-h">AI plan</h2><span class="note" id="planHead"></span></div>
     <div id="plan" style="display:flex;flex-direction:column;gap:10px"></div>
