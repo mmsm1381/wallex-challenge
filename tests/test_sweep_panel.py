@@ -227,3 +227,5 @@ def test_runner_state_has_the_wallet_in_toman_and_the_usdt_purchase(tmp_path) ->
     assert state["funding"]["done"] is True
     assert state["funding"]["done_at"] == 6.0
     assert state["funding"]["usdt"] == pytest.approx(8.0)
+    assert state["kpi"]["equity"] == pytest.approx(state["wallet"]["total_tmn"])
+    assert run.bot.equity(6.0) < run.bot.model_equity(6.0)  # the purchase paid a fee

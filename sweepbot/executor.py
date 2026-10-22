@@ -110,10 +110,25 @@ class Executor:
         self.force_flatten = False
         # The last view of each slot, for the panel.
         self.views: dict[str, slots.SlotView] = {}
+        # The toman value of the whole wallet, set by the runner after each
+        # wallet read. None: no read yet, or an asset without a price.
+        self.wallet_tmn: float | None = None
 
     # Equity ----------------------------------------------------------------
 
     def equity(self, now: float) -> float:
+        """Returns the equity in toman.
+
+        With a wallet read, the equity is the toman value of the whole
+        wallet. It includes the fees and the currency moves of the USDT that
+        the bot holds. Without one (the twin, a replay, or before the first
+        read), it is the model equity of `model_equity`.
+        """
+        if self.wallet_tmn is not None:
+            return self.wallet_tmn
+        return self.model_equity(now)
+
+    def model_equity(self, now: float) -> float:
         """Returns the start equity + closed net + open positions at their mark.
 
         An open position is marked at fair value, or at the best bid when

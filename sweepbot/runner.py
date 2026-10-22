@@ -284,6 +284,10 @@ class Runner:
             self.balances_ts = now
         except RuntimeError as error:
             log.warning("balance read failed: %s", error)
+            return
+        wallet = self.wallet_state(now)
+        complete = wallet is not None and all(a["tmn"] is not None for a in wallet["assets"])
+        self.bot.wallet_tmn = wallet["total_tmn"] if complete else None
 
     def asset_tmn(self, asset: str, qty: float, now: float) -> float | None:
         """Returns the toman value of `qty` of `asset`, or None when unknown.
