@@ -221,21 +221,16 @@ function kpiCard(label, value, color, bar, barColor, note){
   c.appendChild(el('span', 'v mono', value, 'color:' + color));
   var b = el('div', 'bar'), f = el('div', '', '', 'width:' + clamp(bar) + '%;background:' + barColor);
   b.appendChild(f); c.appendChild(b);
-  c.appendChild(el('span', 'note', note));
+  if (note) c.appendChild(el('span', 'note', note));
   return c;
 }
 
 function renderKpis(d){
   var k = d.kpi || {}, lim = d.limits || {}, box = $('kpis'); clear(box);
   var net = k.net_today_bot, ratio = function(a, b){ return isNum(a) && isNum(b) && b !== 0 ? a / b * 100 : 0; };
-  var w = d.wallet, parts = [];
-  if (w && w.assets) w.assets.forEach(function(a){ parts.push(a.asset + ' ' + qty(a.total)); });
-  box.appendChild(kpiCard('Equity (toman)', money(k.equity), C.ink, ratio(k.equity, k.peak), C.accent,
-    (parts.length ? parts.join(' · ') + ' · ' : 'Wallet not read yet · ') + 'start ' + money(k.start_equity)));
+  var w = d.wallet;
   var sale = w ? w.sale_tmn : null;
-  box.appendChild(kpiCard('Wallet TMN value', money(sale), C.ink, ratio(sale, k.start_equity), C.accent,
-    (isNum(sale) ? smoney(sale - k.start_equity) + ' vs start · ' : '') + 'if sold now at best bids, after fees' +
-    (w && isNum(w.usdt_bid) ? ' · USDT bid ' + money(w.usdt_bid) : '')));
+  box.appendChild(kpiCard('Wallet TMN value', money(sale), C.ink, ratio(sale, k.start_equity), C.accent, ''));
   box.appendChild(kpiCard('Net today', smoney(net), isNum(net) && net < 0 ? C.red : C.green,
     Math.abs(ratio(net, k.start_equity)) * 100, isNum(net) && net < 0 ? C.red : C.green,
     'Twin ' + smoney(k.net_today_twin) + ' · ' + (k.trades_today == null ? '—' : k.trades_today) + ' trades, ' + (k.wins_today == null ? '—' : k.wins_today) + ' wins'));
