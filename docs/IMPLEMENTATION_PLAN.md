@@ -34,11 +34,13 @@ Rules for every task:
 
 ## Milestone 2: Wallex order client (about 0.5 day)
 
-- [ ] 2.1 Read the Wallex API documentation. Record in `docs/WALLEX_API.md`: base URL, auth header, order place, cancel, open orders, balances, price and quantity ticks per market, rate limits, error codes. Do not guess any of these.
-  * Status 2026-10-22: the probe confirmed the base URL, the auth header, balances, open orders, fees and the price and quantity rules (`docs/WALLEX_API.md`). The bot now rounds prices and quantities (`sweepbot/rules.py`). Open: the order place and cancel calls from the docs (`research/scripts/wallex_docs_fetch.py`).
+- [x] 2.1 Read the Wallex API documentation. Record in `docs/WALLEX_API.md`: base URL, auth header, order place, cancel, open orders, balances, price and quantity ticks per market, rate limits, error codes. Do not guess any of these.
+  * Status 2026-10-22: the probe confirmed the base URL, the auth header, balances, open orders, fees and the price and quantity rules (`docs/WALLEX_API.md`). The bot now rounds prices and quantities (`sweepbot/rules.py`). The docs gave the order calls. Open details: the fee asset of a buy fill, and the time window of the rate limit headers.
 - [ ] 2.2 Check that the order API accepts requests from the server. If it does not, write the options in `docs/WALLEX_API.md` and ask the team (a server in Iran is the fallback).
-- [ ] 2.3 `WallexBroker` in `sweepbot/broker.py`. The API key comes from the environment variable `WALLEX_API_KEY`. Tests with a fake HTTP transport: place, cancel, part fill, errors, retries.
+- [x] 2.3 `WallexBroker` in `sweepbot/wallex_broker.py`. The API key comes from the environment variable `WALLEX_API_KEY`. Tests with a fake HTTP transport: place, cancel, part fill, errors, retries.
+  * Status 2026-10-22: done. `python -m sweepbot run --mode live --confirm-live` uses it. The challenge account also needs `WALLEX_SUB_ACCOUNT_ID`.
 - [ ] 2.4 Live smoke test, with a team member present: place one bid of the minimum size far below the market, read it back, cancel it. Record the result in `docs/WALLEX_API.md`.
+  * Command: `WALLEX_API_KEY=... python -m sweepbot smoke --market BTCTMN --below 20`. It asks for "yes" before the order.
 
 ## Milestone 3: AI part (about 1 to 1.5 days)
 

@@ -67,6 +67,8 @@ The sweep bot is a new package `sweepbot/` in this repo. It imports the parts of
 | `sweepbot/executor.py` | One executor tick: broker events, equity, plan, slot views, orders. Runs the bot and the twin. | new |
 | `sweepbot/runner.py` | Wiring of all parts. Replay driver on raw files. Live loop: feeds, 100 ms ticks, premium, status, AI jobs, daily report. | `lagcatcher.feeds` |
 | `sweepbot/broker.py` | `Broker` protocol, `PaperBroker` (lagcatcher fill rules), `WallexBroker` (REST) | `lagcatcher.shadow` fill rules |
+| `sweepbot/wallex_broker.py` | `WallexBroker` on the Wallex REST API. Polls the open orders every second. | `docs/WALLEX_API.md` |
+| `sweepbot/rules.py` | Price tick, quantity step and minimum value per market | `research/wallex_markets.json` |
 | `sweepbot/store.py` | SQLite schema and writes | new |
 | `sweepbot/ai/provider.py` | `ModelProvider` protocol, so that any model can fill the AI jobs. `FakeProvider` for tests. | new |
 | `sweepbot/ai/claude.py` | Claude adapter (`anthropic` SDK, structured output, web search) | new |
@@ -193,6 +195,8 @@ class Broker(Protocol):
 * `PaperBroker` fills orders with the lagcatcher rules: a bid fills only when a seller trades strictly below it or the best ask falls to it, and a sell fills when a buyer trades strictly above it or the best bid rises to it.
 * `WallexBroker` uses the Wallex REST API with the account API key from an environment variable. The order endpoints, the auth header, the price ticks and the rate limits must come from the Wallex API documentation (task in the plan). Do not guess them.
 * At start, the live broker reads the open orders and balances, and cancels unknown orders of the bot's markets.
+* The private websocket of Wallex needs a browser login cookie. So `WallexBroker` polls `GET /v1/account/openOrders` every second, and reads a finished order by its client id. A fill can come up to 1 s late.
+* The bot sets its own `client_id` for each order. After a lost answer, it reads the order by this id before a retry, so a retry cannot place the same order twice.
 
 ## 10. Storage
 

@@ -42,31 +42,36 @@ class Runner:
 
     def __init__(self, cfg: dict, *, mode: str, store: store_mod.Store,
                  start_ts: float, supervisor=None, with_twin: bool = True,
-                 record_raw: bool = False) -> None:
+                 record_raw: bool = False, live_broker=None) -> None:
         """Builds the parts.
 
         Args:
             cfg: The config dict from `sweepbot.config.load_config`.
-            mode: "paper" or "replay". Live mode needs the `WallexBroker`
-                of milestone 2.
+            mode: "live", "paper" or "replay".
             store: The SQLite store.
             start_ts: The start time of the run.
             supervisor: An `ai.supervisor.Supervisor`, or None for the
                 default plan only.
             with_twin: True runs the no-AI twin next to the bot.
             record_raw: True writes the lagcatcher raw files.
+            live_broker: The `WallexBroker` of live mode.
         """
-        if mode not in ("paper", "replay"):
-            raise ValueError(f"mode {mode!r} needs a broker that is not built yet")
+        if mode not in ("live", "paper", "replay"):
+            raise ValueError(f"unknown mode {mode!r}")
+        if (mode == "live") != (live_broker is not None):
+            raise ValueError("live mode needs a live broker, and only live mode")
         self.cfg = cfg
         self.mode = mode
         self.store = store
         self.supervisor = supervisor
         self.market = market_mod.Market(cfg, record_raw=record_raw)
         self.filters = filters_mod.Filters(cfg)
-        self.broker = broker.PaperBroker(cfg, name=mode)
-        self.market.add_listener(on_book=self.broker.on_book,
-                                 on_trade=self.broker.on_trade)
+        if live_broker is not None:
+            self.broker = live_broker
+        else:
+            self.broker = broker.PaperBroker(cfg, name=mode)
+            self.market.add_listener(on_book=self.broker.on_book,
+                                     on_trade=self.broker.on_trade)
         self._tasks: set[asyncio.Task] = set()
         self._last_plan_call = -MIN_PLAN_GAP_S
         if supervisor is None:
@@ -265,6 +270,9 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
             log.info("daily report: %s", runner.daily(day["current"], now))
             day["current"] = today
 
+    if runner.mode == "live":
+        cancelled = await runner.broker.cancel_unknown(market.trade_markets)
+        log.warning("LIVE mode: %d old orders cancelled", len(cancelled))
     tasks += [asyncio.create_task(every(cfg["bot"]["timer_s"], runner.tick)),
               asyncio.create_task(every(cfg["premium"]["sample_s"], premium)),
               asyncio.create_task(every(cfg["bot"]["status_every_s"], status)),

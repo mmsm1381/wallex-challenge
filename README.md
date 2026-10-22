@@ -9,7 +9,7 @@ A trading bot for the Wallex live-trading challenge of the StarCoach Agentic AI 
 | Research: lag edge | Done. No profit after fees. Dropped. |
 | Research: sweep bids | Done. 60-day backtest is positive with two filters. See `docs/RESEARCH.md`. |
 | `lagcatcher` (feeds, fair value, recorder, replay, paper tests) | Built, 63 tests. Records live data on the shadow-test server. |
-| `sweepbot` (the bot) | Paper bot, replay, risk guard, AI supervisor (Claude), twin and daily report are built and tested. Open: runs on the server, the Wallex order client (milestone 2). See `docs/IMPLEMENTATION_PLAN.md`. |
+| `sweepbot` (the bot) | Paper bot, replay, risk guard, AI supervisor (Claude), twin and daily report are built and tested. Open: runs on the server, the live smoke test (task 2.4). See `docs/IMPLEMENTATION_PLAN.md`. |
 
 ## Key numbers
 
@@ -59,6 +59,8 @@ Sweep bot:
 .venv/bin/python -m sweepbot run --mode paper                 # live data, paper broker, twin
 .venv/bin/python -m sweepbot run --mode paper --ai            # with the Claude supervisor
 .venv/bin/python -m sweepbot report --day 2026-10-23          # daily report (Tehran day)
+.venv/bin/python -m sweepbot smoke --market BTCTMN            # task 2.4: one far bid, read back, cancel
+.venv/bin/python -m sweepbot run --mode live --confirm-live   # real orders, team member present
 ```
 
 `config.sweep.toml` holds the sweep bot settings. The defaults are in `sweepbot/config.py`.
@@ -89,4 +91,4 @@ config.sweep.toml  config of the sweep bot
 
 ## Secrets
 
-The bot will need `WALLEX_API_KEY` and `ANTHROPIC_API_KEY`. Put them in the environment or in a `.env` file. Git ignores `.env`. Never commit a key.
+The bot needs `WALLEX_API_KEY`, `WALLEX_SUB_ACCOUNT_ID` (the challenge trade-credit account) and `ANTHROPIC_API_KEY`. Put them in the environment or in a `.env` file. Git ignores `.env`. Never commit a key.

@@ -8,6 +8,12 @@ Commands:
     python -m sweepbot run --mode paper [--config F] [--duration S] [--ai]
         Runs the bot on the live feeds with the paper broker and the twin.
         --ai turns the Claude supervisor on (needs ANTHROPIC_API_KEY).
+    python -m sweepbot run --mode live --confirm-live [--config F] [--ai]
+        Real orders on Wallex (needs WALLEX_API_KEY, and for the challenge
+        account WALLEX_SUB_ACCOUNT_ID). Only with a team member present.
+    python -m sweepbot smoke [--market BTCTMN] [--below 20]
+        Task 2.4: places one bid of the minimum value far below the market,
+        reads it back and cancels it. Asks for "yes" first.
     python -m sweepbot report --day YYYY-MM-DD [--config F] [--db F]
         Prints the daily report of a Tehran day from the SQLite store.
 """
@@ -15,6 +21,7 @@ Commands:
 import argparse
 import asyncio
 import itertools
+import math
 import logging
 import os
 import time
@@ -83,9 +90,15 @@ def cmd_replay(args: argparse.Namespace) -> None:
 def cmd_run(args: argparse.Namespace) -> None:
     """Runs the bot on the live feeds."""
     cfg = _load(args.config)
+    live_broker = None
     if args.mode == "live":
-        raise SystemExit("live mode needs the WallexBroker of milestone 2 "
-                         "(docs/IMPLEMENTATION_PLAN.md). Use --mode paper.")
+        if not args.confirm_live:
+            raise SystemExit("live mode sends real orders. A team member must be present "
+                             "(AGENTS.md). Add --confirm-live to start it.")
+        from sweepbot import rules
+        from sweepbot import wallex_broker
+        live_broker = wallex_broker.WallexBroker.from_env(
+            rules.load_rules(cfg["bot"]["market_rules"]))
     cfg["bot"]["mode"] = args.mode
     store = store_mod.Store(cfg["bot"]["db_path"])
     supervisor = None
@@ -98,10 +111,44 @@ def cmd_run(args: argparse.Namespace) -> None:
             equity_fn=lambda now: holder["runner"].bot.equity(now))
     os.makedirs(cfg["bot"]["out_dir"], exist_ok=True)
     runner = runner_mod.Runner(cfg, mode=args.mode, store=store, start_ts=time.time(),
-                               supervisor=supervisor, record_raw=True)
+                               supervisor=supervisor, record_raw=True,
+                               live_broker=live_broker)
     if supervisor is not None:
         holder["runner"] = runner
     asyncio.run(runner_mod.run_live(runner, duration_s=args.duration))
+
+
+async def smoke(cfg: dict, market: str, below_pct: float) -> None:
+    """Places, reads and cancels one far bid on Wallex, and prints each step."""
+    from lagcatcher import feeds
+    from sweepbot import rules
+    from sweepbot import wallex_broker
+    rule_set = rules.load_rules(cfg["bot"]["market_rules"])
+    rule = rule_set[market]
+    bids, _ = await asyncio.to_thread(feeds.wallex_rest_book, market)
+    price = rule.price_tick * int(bids[0][0] * (1 - below_pct / 100) / rule.price_tick)
+    qty = rule.qty_step * math.ceil(rule.min_notional * 1.05 / price / rule.qty_step)
+    live = wallex_broker.WallexBroker.from_env(rule_set, poll_s=0.0)
+    print(f"best bid {bids[0][0]:.10g}. Order: BUY {qty:.10g} {market} at {price:.10g}"
+          f" ({below_pct}% below), value {price * qty:,.2f}")
+    if input('Type "yes" to send this real order: ').strip() != "yes":
+        print("stopped, no order sent")
+        return
+    order_id = await live.place_limit(market, "buy", price, qty)
+    print("placed:", order_id, [e.kind for e in await live.poll()])
+    await asyncio.sleep(2.0)
+    found = [o for o in await live.open_orders() if o.id == order_id]
+    print("in open orders:", bool(found), found[:1])
+    await live.cancel(order_id)
+    await asyncio.sleep(1.0)
+    print("after cancel:", [(e.kind, e.reason) for e in await live.poll()])
+    left = [o for o in await live.open_orders() if o.id == order_id]
+    print("still open:", bool(left), "(must be False)")
+
+
+def cmd_smoke(args: argparse.Namespace) -> None:
+    """Runs the live smoke test of task 2.4."""
+    asyncio.run(smoke(_load(args.config), args.market, args.below))
 
 
 def cmd_report(args: argparse.Namespace) -> None:
@@ -114,7 +161,7 @@ def main() -> None:
     """Parses the command line and runs the command."""
     parser = argparse.ArgumentParser(prog="sweepbot")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("replay", "run", "report"):
+    for name in ("replay", "run", "report", "smoke"):
         commands.add_parser(name).add_argument("--config", default="config.sweep.toml")
     replay = commands.choices["replay"]
     replay.add_argument("--raw", required=True, help="lagcatcher raw folder")
@@ -130,6 +177,11 @@ def main() -> None:
     run.add_argument("--mode", choices=["paper", "live"], default="paper")
     run.add_argument("--duration", type=float, default=None)
     run.add_argument("--ai", action="store_true")
+    run.add_argument("--confirm-live", action="store_true",
+                     help="confirm real orders in live mode")
+    smoke_cmd = commands.choices["smoke"]
+    smoke_cmd.add_argument("--market", default="BTCTMN")
+    smoke_cmd.add_argument("--below", type=float, default=20.0)
     report_cmd = commands.choices["report"]
     report_cmd.add_argument("--day", required=True)
     report_cmd.add_argument("--db", default=None)
@@ -137,7 +189,8 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.Formatter.converter = time.gmtime
-    {"replay": cmd_replay, "run": cmd_run, "report": cmd_report}[args.command](args)
+    {"replay": cmd_replay, "run": cmd_run, "report": cmd_report,
+     "smoke": cmd_smoke}[args.command](args)
 
 
 if __name__ == "__main__":

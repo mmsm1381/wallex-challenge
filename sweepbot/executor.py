@@ -161,7 +161,8 @@ class Executor:
             slot = self.slots.get(market)
             if slot is None:
                 rule = self.rules.get(market, rules_mod.MarketRule())
-                slot = self.slots[market] = slots.Slot(market, self.cfg, rule.price_tick)
+                slot = self.slots[market] = slots.Slot(market, self.cfg, rule.price_tick,
+                                                       rule.min_qty)
             slot_plan = wanted.get(market)
             was_busy = slot.busy()
             view = self._view(market, slot, slot_plan, now, open_count,

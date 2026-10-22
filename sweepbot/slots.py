@@ -131,16 +131,20 @@ class ClosedTrade:
 class Slot:
     """State machine of one market."""
 
-    def __init__(self, market: str, cfg: dict, tick: float = 0.0) -> None:
+    def __init__(self, market: str, cfg: dict, tick: float = 0.0,
+                 min_qty: float = 0.0) -> None:
         """Creates an idle slot.
 
         Args:
             market: The Wallex market, such as "BTCTMN".
             cfg: The config dict from `sweepbot.config.load_config`.
             tick: The price tick of the market (0: no rounding).
+            min_qty: The smallest order quantity. A rest below it cannot be
+                sold, so the trade counts as closed.
         """
         self.market = market
         self.tick = tick
+        self.min_qty = min_qty
         slots = cfg["slots"]
         self._requote_pct = slots["requote_pct"]
         self._cooldown_s = slots["cooldown_s"]
@@ -182,8 +186,8 @@ class Slot:
         return [order_id for order_id in (self.bid_id, self.exit_id) if order_id]
 
     def has_position(self) -> bool:
-        """Returns True while the slot holds coins."""
-        return self.qty > _DUST * max(self.bought, 1e-30)
+        """Returns True while the slot holds a quantity that it can sell."""
+        return self.qty > max(_DUST * max(self.bought, 1e-30), self.min_qty * (1 - 1e-9))
 
     def entry_price(self) -> float | None:
         """Returns the average entry price, or None."""

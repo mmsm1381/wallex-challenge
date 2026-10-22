@@ -32,6 +32,16 @@ class MarketRule:
     min_qty: float = 0.0
     min_notional: float = 0.0
 
+    @property
+    def price_decimals(self) -> int:
+        """Returns the number of decimals of a price."""
+        return _decimals(self.price_tick)
+
+    @property
+    def qty_decimals(self) -> int:
+        """Returns the number of decimals of a quantity."""
+        return _decimals(self.qty_step)
+
     def round_qty(self, qty: float) -> float:
         """Rounds a quantity down to the step."""
         if self.qty_step <= 0:
@@ -49,6 +59,13 @@ class MarketRule:
         if qty <= 0 or qty < self.min_qty or qty * price < self.min_notional:
             return None
         return qty
+
+
+def _decimals(step: float) -> int:
+    """Returns the decimals of a tick or step such as 0.001 (3). 0 gives 8."""
+    if step <= 0:
+        return 8
+    return max(0, round(-math.log10(step)))
 
 
 def load_rules(path: str | None) -> dict[str, MarketRule]:
