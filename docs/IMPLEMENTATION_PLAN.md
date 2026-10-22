@@ -14,7 +14,8 @@ Rules for every task:
 - [x] 0.1 Put the project in git. Keep data and secrets out (`.gitignore`).
 - [x] 0.2 Write `README.md`, `AGENTS.md`, `docs/RESEARCH.md`, `docs/DESIGN.md`, this plan.
 - [ ] 0.3 Copy the lagcatcher raw files from the server to a local folder (see `research/README.md` section 3). The recording runs until about 2026-10-23 04:52 UTC. Ask the team before a new run on the shared server.
-- [ ] 0.4 Re-run `research/scripts/sweep_study.py` with the new raw files and `replay_deep_bids.py` on all recorded hours. Add the new numbers to `RESEARCH.md` section 3.
+- [ ] 0.4 Re-run `research/scripts/sweep_study.py` with the new raw files and `replay_deep_bids.py` on all recorded hours. Run `sweep_scan.py` and add the new sweeps to `RESEARCH.md` section 3.3.
+- [ ] 0.5 Backtest the mixed depth of `RESEARCH.md` section 3.4: 1.3% on toman markets and 1.0% on USDT markets, all markets and 5 markets out of sample. Use it as the default plan only when it beats both fixed depths on net per day and drawdown.
 
 ## Milestone 1: paper sweep bot (about 1 day)
 

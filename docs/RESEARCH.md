@@ -99,7 +99,45 @@ Net per market at 1.3% with both filters (61 days): ADATMN +420k, BTCTMN +188k, 
 
 **Funds limit.** An open bid locks its funds, so a 5M account keeps about 5 bids of 1M. Out-of-sample test: the 5 best markets of the first 30 days (ADATMN, ETHUSDT, TRXTMN, ETHTMN, PEPEUSDT) gave 2.7 fills a day, 78% win, median +0.64%, **+11.6k a day** and a maximum drawdown of -16k in the last 31 days. This is the realistic expectation at 1M per bid.
 
-### 3.3 Limits of the evidence
+### 3.3 Sweeps in the live recording
+
+Script: `sweep_scan.py` with a minimum drop of 0.5%. Data: lagcatcher raw files, 2026-10-21 19:46 to 2026-10-22 11:46 UTC (16 h). The drop is measured from the best bid before the burst.
+
+| Time (UTC, 10-22) | Market | Drop | Seller trades | Volume | Best bid after 60 s | Result for a bid 1.3% below fair value |
+|---|---|---|---|---|---|---|
+| 01:40 | BTCTMN | 1.48% | 37 | 381M toman | -0.46% | Fill, +0.68% |
+| 03:05 | ETHTMN | 0.70% | 12 | 130M toman | -0.54% | No fill. The price did not come back: a real move. |
+| 07:03 | BTCTMN | 1.59% | 85 | 1,820M toman | 0.00% | Fill, +0.82% |
+| 09:13 | PEPETMN | 0.80% and 0.85% (two bursts) | 14 and 8 | 345M and 124M toman | +0.09% | Fill, +0.95% |
+| 10:06 | ADAUSDT | 0.55% | 3 | 6M toman | +0.09% | No fill. Too small. |
+
+* From 10:06 to 11:46 UTC, no burst dropped 0.5% or more.
+* 3 usable sweeps in 16 h is fewer than the 5 fills a day of the backtest. ADATMN gave a third of the backtest fills, and it had no sweep in this recording. One quiet day is inside the normal range of the backtest. Keep the count every day.
+* All three usable sweeps came back fast and fully. The one burst that did not come back (ETHTMN 03:05) did not reach a 1.3% bid.
+* Sweeps come in clusters with long quiet times between them. The bot must keep its bids up day and night.
+
+### 3.4 Depth 1.0% against 1.3%
+
+Data: `sweep_study.py`, both filters, 1M toman per trade.
+
+| Depth | Fills/day | Win | Median | Net/day | Max drawdown | Time exits (mean) |
+|---|---|---|---|---|---|---|
+| 1.0%, all 18 markets | 10.8 | 76% | +0.37% | +26.5k | -32k | 144 of 658 (-0.36%) |
+| 1.3%, all 18 markets | 5.0 | 81% | +0.67% | +25.4k | -11k | 76 of 306 (-0.20%) |
+| 1.0%, 5 markets, out of sample | 6.1 | 77% | +0.40% | +14.1k | -33k | |
+| 1.3%, 5 markets, out of sample | 2.7 | 78% | +0.64% | +11.6k | -16k | |
+
+The 5 markets were chosen on the first 30 days and tested on the last 31 days. At 1.0% they were PEPEUSDT, ETHUSDT, ADATMN, TRXTMN and ETHTMN. At 1.3% they were the same 5 markets.
+
+On the live recording, a 1.0% bid on toman markets catches the same three sweeps with less profit (+0.38%, +0.51%, +0.65%, about +15k against +24.5k at 1.3%). It finds no extra sweep.
+
+Conclusions:
+
+* 1.0% gives about twice the trades and a little more net per day. This helps the activity score.
+* 1.0% has a smaller margin over the fees (median +0.37% against a toman round trip of 0.50%), more trades that end at the time limit, and three times the drawdown. This hurts the drawdown and stability scores.
+* Proposal, **not tested yet**: 1.3% on toman markets (round trip 0.50%) and 1.0% on USDT markets (round trip 0.20%). The supervisor can move each market between 1.0% and 1.6%. `IMPLEMENTATION_PLAN.md` task 0.5 is the backtest of this proposal.
+
+### 3.5 Limits of the evidence
 
 * We chose the FX filter after we saw the 10-01 crash. It is partly fitted to that one event.
 * Both filters use information from the same minute as the fill. A live bot sees these moves within milliseconds, but a sweep and a shock can come in the same second.

@@ -9,6 +9,7 @@ These scripts produced the results in `docs/RESEARCH.md`. They are one-off resea
 | `scripts/sweep_fetch.py` | Downloads 61 days of 1m OHLC: Wallex (udf API, 8 parallel workers, about 7 minutes) and Binance (data.binance.vision daily klines) | network |
 | `scripts/sweep_study.py` | Simulates resting bids at depths below fair value, with and without the two filters. Prints all tables of `docs/RESEARCH.md` section 3 | output of `sweep_fetch.py`, optional lagcatcher raw folder |
 | `scripts/replay_deep_bids.py` | Replays lagcatcher raw order books with resting bids only, at the buffers in `BUFS` | lagcatcher raw folder |
+| `scripts/sweep_scan.py` | Lists every sell sweep in the raw trades: drop, size, recovery after 5 s and 60 s | lagcatcher raw folder |
 
 Commands (from the repo root, standard library only, about 8 minutes in total):
 
