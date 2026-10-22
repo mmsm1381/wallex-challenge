@@ -63,7 +63,10 @@ tmn_slots = 3
 usdt_slots = 2
 
 [funding]
-usdt_target_share = 0.40
+# 0: never buy USDT. The account already holds 7.34789 USDT (about 2M
+# toman) from the first live start on 2026-10-22 13:33 UTC. The user asked
+# not to buy more.
+usdt_target_share = 0.0
 slippage_pct = 0.3
 
 [ai]
