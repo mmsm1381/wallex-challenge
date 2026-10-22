@@ -33,6 +33,9 @@ from sweepbot.ai import validator
 
 log = logging.getLogger(__name__)
 
+# The smallest time between two plan calls, in seconds.
+MIN_PLAN_GAP_S = 60.0
+
 
 class Runner:
     """The parts of one bot run."""
@@ -65,6 +68,7 @@ class Runner:
         self.market.add_listener(on_book=self.broker.on_book,
                                  on_trade=self.broker.on_trade)
         self._tasks: set[asyncio.Task] = set()
+        self._last_plan_call = -MIN_PLAN_GAP_S
         if supervisor is None:
             plan = validator.default_plan(cfg)
             plan_id = store.add_plan(ts=start_ts, provider="config", model="default",
@@ -139,7 +143,9 @@ class Runner:
         """Starts the model jobs that are due. Called about once per second."""
         if self.supervisor is None:
             return
-        if self.supervisor.due(now):
+        # Alerts can come in bursts. One plan call per minute is enough.
+        if self.supervisor.due(now) and now - self._last_plan_call >= MIN_PLAN_GAP_S:
+            self._last_plan_call = now
             self._spawn(self.supervisor.run_plan(now, self.bot.snapshot(now)))
         self._spawn(self.supervisor.refresh_news(now))
 

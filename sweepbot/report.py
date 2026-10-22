@@ -165,7 +165,7 @@ def _log_section(logs: list[dict]) -> list[str]:
 
 
 def daily_report(store, day: str,
-                 modes: tuple[str, ...] = ("live", "paper", "twin")) -> str:
+                 modes: tuple[str, ...] = ("live", "paper", "replay", "twin")) -> str:
     """Builds the Markdown report of one Tehran day.
 
     Args:

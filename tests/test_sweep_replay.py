@@ -19,10 +19,11 @@ USDTTMN = 219_960.0
 BTC_USDT = 100_000.0
 
 
-def sweep_records(sweep_at: float = 200.0) -> list[tuple[float, str, dict]]:
-    """Returns a calm market for `sweep_at` seconds, the sweep and the rebound."""
+def sweep_records(sweep_at: float = 200.0, end_s: float | None = None,
+                  rebound: bool = True) -> list[tuple[float, str, dict]]:
+    """Returns a calm market until `end_s`, the sweep at `sweep_at` and the rebound."""
     records = []
-    for second in range(0, int(sweep_at) + 30):
+    for second in range(0, int(end_s if end_s is not None else sweep_at + 30)):
         ts = float(second)
         for venue in ("bybit", "kucoin"):
             records.append((ts, "quote", {"v": venue, "c": "BTC",
@@ -34,8 +35,9 @@ def sweep_records(sweep_at: float = 200.0) -> list[tuple[float, str, dict]]:
         price = 22_010_000_000.0 - step * (22_010_000_000.0 - 21_660_000_000.0) / 84
         records.append((sweep_at + 0.5 + step * 0.0002, "trade",
                         {"m": "BTCTMN", "p": price, "q": 0.3, "bm": True}))
-    records.append((sweep_at + 3.1, "trade", {"m": "BTCTMN", "p": 22_018_000_000.0,
-                                              "q": 0.1, "bm": False}))
+    if rebound:
+        records.append((sweep_at + 3.1, "trade", {"m": "BTCTMN", "p": 22_018_000_000.0,
+                                                  "q": 0.1, "bm": False}))
     records.sort(key=lambda record: record[0])
     return records
 
