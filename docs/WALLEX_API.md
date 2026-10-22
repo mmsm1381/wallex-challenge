@@ -5,7 +5,7 @@ This file records what we know about the Wallex REST API for `WallexBroker` (mil
 Sources:
 
 * **Probe**: `research/scripts/wallex_api_probe.py`, run on 2026-10-22 12:04 UTC from the developer machine in Iran with the account API key. The raw output holds personal data. It is not in git.
-* **Docs**: developers.wallex.ir. Not read yet. `research/scripts/wallex_docs_fetch.py` downloads it as text.
+* **Docs**: developers.wallex.ir, downloaded on 2026-10-22 with `research/scripts/wallex_docs_fetch.py` (pages `spot-*`, `generated/*`, `socket-*`, `trade-credit-*`).
 
 ## 1. Confirmed by the probe
 
@@ -35,14 +35,30 @@ Rules of the default plan markets:
 | PEPEUSDT | 0.00000001 USDT | 1 | 1 USDT |
 | USDTTMN | 1 toman | 0.01 | 50,000 toman |
 
-## 2. Still open (needs the docs)
+## 2. From the docs
 
-* Place order: path, method, body fields (symbol, side, type, price, quantity), and the answer (order id field).
-* Cancel order: path, method, and the answer.
-* One order by id: path, and the status values (new, partial, filled, cancelled).
-* The time window of the rate limit.
-* Error codes of a rejected order (funds, precision, minimum value).
+| Fact | Value | Docs page |
+|---|---|---|
+| Requests | JSON body, header `Content-Type: application/json`. Number fields are strings, such as `"82494"`. | `docs/` (intro) |
+| Auth | Header `x-api-key`. A key has read access by default. Trading needs the "trade" permission on the key. A key has an end date. At most 3 keys per account. | `generated/spot`, `create-api-key` |
+| Trade-credit account | The challenge account is a trade-credit (sub) account. It has its own wallet, its own API key and its own order history. Spot requests for it need its own key and the header `sub-account-client-id: <clientId>`. | `spot-intro`, `trade-credit-intro` |
+| Place order | `POST /v1/account/orders` with `symbol`, `side` (`BUY` or `SELL`), `type` (`LIMIT`, `MARKET`, `STOP_LIMIT`, `STOP_MARKET`), `price`, `quantity`, and optional `client_id` (letters, digits and `_`, unique). Answer: HTTP 201, `result` is the order. | `spot-create-order` |
+| Order fields | `clientOrderId`, `symbol`, `side`, `type`, `price`, `origQty`, `executedQty`, `executedPrice`, `executedSum`, `executedPercent`, `status` (such as `NEW`, `FILLED`, `CANCELED`), `active`, `fee`, `fills[]` (`price`, `quantity`, `fee`, `feeAsset`, `feeCoefficient`, `makerFeeCoefficient`, `takerFeeCoefficient`, `isBuyer`, `timestamp`), `created_at`, `updated_at`. | `spot-create-order`, `spot-single-order-detail` |
+| Order rate limit | At most 20 order requests per 10 s. The bot uses 15 plus a reserve of 5. | `spot-create-order` |
+| Cancel | `DELETE /v1/account/orders/{client_id}`. Allowed while the order is not finished, also after a part fill. Answers 200, 400, 401, 422. | `spot-cancel-order`, `generated/delete-orders-client` |
+| One order | `GET /v1/account/orders/{client_id}`. Answers 200 or 404 (order not found). | `spot-single-order-detail`, `generated/get-orders-client` |
+| Open orders | `GET /v1/account/openOrders` with optional `symbol`, `page`, `per_page`. | `spot-active-orders` |
+| Order history | `GET /v1/account/orders` with optional `from`, `to`, `page`, `per_page`, `type`, `side`, `market`. | `spot-order-list` |
+| Market orders | A market order is cancelled when it would move the price more than 2% from the last trade, or when the book is too thin. | `spot-types` |
+| Private websocket | Order and balance events exist (`orderSaved`, `orderRemoved`, `tradeDetails`, `balanceUpdated`). The token comes from `POST /v3/auth/token/refresh` with the login cookie of a browser session, not with the API key. So the bot polls the REST API instead. | `socket-private-channel`, `socket-token` |
+| Trade-credit terms | A package runs 30 days. It has a daily fee, a warning level and a liquidation level. At the liquidation level, the package closes by itself. | `trade-credit-types` |
 
-## 3. Server access (task 2.2)
+## 3. Still open
+
+* The fee asset of a buy fill (base coin or quote currency). The broker handles both.
+* The time window of `x-ratelimit-limit` (600 and 900).
+* The `clientId` of the challenge sub-account. It comes from the trade-credit wallet API or the Wallex web page.
+
+## 4. Server access (task 2.2)
 
 Not checked yet. Run the probe on the shadow-test server and compare.
