@@ -9,7 +9,7 @@ A trading bot for the Wallex live-trading challenge of the StarCoach Agentic AI 
 | Research: lag edge | Done. No profit after fees. Dropped. |
 | Research: sweep bids | Done. 60-day backtest is positive with two filters. See `docs/RESEARCH.md`. |
 | `lagcatcher` (feeds, fair value, recorder, replay, paper tests) | Built, 63 tests. Records live data on the shadow-test server. |
-| `sweepbot` (the bot) | Paper bot, replay, risk guard, AI supervisor (Claude), twin and daily report are built and tested. Open: runs on the server, the live smoke test (task 2.4). See `docs/IMPLEMENTATION_PLAN.md`. |
+| `sweepbot` (the bot) | Paper bot, replay, risk guard, AI supervisor (Claude), twin and daily report are built and tested. Open: runs on the server, the server access check (task 2.2). The live smoke test passed. See `docs/IMPLEMENTATION_PLAN.md`. |
 
 ## Key numbers
 

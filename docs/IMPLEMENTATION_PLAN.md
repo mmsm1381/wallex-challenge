@@ -39,8 +39,9 @@ Rules for every task:
 - [ ] 2.2 Check that the order API accepts requests from the server. If it does not, write the options in `docs/WALLEX_API.md` and ask the team (a server in Iran is the fallback).
 - [x] 2.3 `WallexBroker` in `sweepbot/wallex_broker.py`. The API key comes from the environment variable `WALLEX_API_KEY`. Tests with a fake HTTP transport: place, cancel, part fill, errors, retries.
   * Status 2026-10-22: done. `python -m sweepbot run --mode live --confirm-live` uses it. The challenge account also needs `WALLEX_SUB_ACCOUNT_ID`.
-- [ ] 2.4 Live smoke test, with a team member present: place one bid of the minimum size far below the market, read it back, cancel it. Record the result in `docs/WALLEX_API.md`.
+- [x] 2.4 Live smoke test, with a team member present: place one bid of the minimum size far below the market, read it back, cancel it. Record the result in `docs/WALLEX_API.md`.
   * Command: `WALLEX_API_KEY=... python -m sweepbot smoke --market BTCTMN --below 20`. It asks for "yes" before the order.
+  * Status 2026-10-22: passed from the developer machine in Iran (place, read back, cancel). Result in `docs/WALLEX_API.md` section 5.
 
 ## Milestone 3: AI part (about 1 to 1.5 days)
 

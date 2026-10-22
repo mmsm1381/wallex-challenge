@@ -57,13 +57,30 @@ Rules of the default plan markets:
 
 * The fee asset of a buy fill (base coin or quote currency). The broker handles both.
 * The time window of `x-ratelimit-limit` (600 and 900).
-* Orders on the challenge account without the `sub-account-client-id` header. The read test below says the key alone selects the account. The smoke test (task 2.4) checks it for orders.
 
 ## 4. Challenge account key (2026-10-22)
 
 * `GET /v1/account/balances` with the key of the challenge account gave TMN 5,000,000, with and without the `sub-account-client-id` header.
 * So the key alone selects the challenge account, at least for reads. The bot leaves `WALLEX_SUB_ACCOUNT_ID` empty. Set it only when Wallex rejects orders without it.
 
-## 5. Server access (task 2.2)
+## 5. Live smoke test (task 2.4, 2026-10-22)
+
+`python -m sweepbot smoke --market BTCTMN --below 20` on the developer machine in Iran, with the challenge account key and no `sub-account-client-id` header. A team member was present.
+
+| Step | Result |
+|---|---|
+| Order | BUY 0.00000297 BTCTMN at 17,699,585,426 toman (20% below the best bid of 22,124,481,780), value 52,568 toman |
+| Place | Accepted. Client id `sb1792672640386_1`. The answer gave the "live" event at once. |
+| Read back | The order was in `GET /v1/account/openOrders` with the right price and quantity. |
+| Cancel | `DELETE /v1/account/orders/{client_id}` gave the "cancelled" event. |
+| After cancel | The order was not open any more. |
+
+Conclusions:
+
+* The key alone is enough for orders on the challenge account. The header `sub-account-client-id` is not needed.
+* Wallex accepts a limit bid 20% below the market. So the bot depths of 1.0% to 2.5% are allowed.
+* The price and quantity strings of `WallexBroker.format_order` are accepted.
+
+## 6. Server access (task 2.2)
 
 Not checked yet. Run the probe on the shadow-test server and compare.
