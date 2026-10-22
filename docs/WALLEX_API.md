@@ -57,8 +57,13 @@ Rules of the default plan markets:
 
 * The fee asset of a buy fill (base coin or quote currency). The broker handles both.
 * The time window of `x-ratelimit-limit` (600 and 900).
-* The `clientId` of the challenge sub-account. It comes from the trade-credit wallet API or the Wallex web page.
+* Orders on the challenge account without the `sub-account-client-id` header. The read test below says the key alone selects the account. The smoke test (task 2.4) checks it for orders.
 
-## 4. Server access (task 2.2)
+## 4. Challenge account key (2026-10-22)
+
+* `GET /v1/account/balances` with the key of the challenge account gave TMN 5,000,000, with and without the `sub-account-client-id` header.
+* So the key alone selects the challenge account, at least for reads. The bot leaves `WALLEX_SUB_ACCOUNT_ID` empty. Set it only when Wallex rejects orders without it.
+
+## 5. Server access (task 2.2)
 
 Not checked yet. Run the probe on the shadow-test server and compare.
