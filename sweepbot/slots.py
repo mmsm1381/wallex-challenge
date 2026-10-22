@@ -151,6 +151,7 @@ class Slot:
         self._loss_cooldown_s = slots["loss_cooldown_s"]
         self._cut_slippage_pct = slots["cut_slippage_pct"]
         self.state = IDLE
+        self.order_ts: float | None = None
         self.cooldown_until = 0.0
         self.closed: list[ClosedTrade] = []
         self.log: list[str] = []
@@ -230,6 +231,7 @@ class Slot:
         if not budget.take(now):
             return
         self.bid_id = await broker_.place_limit(self.market, broker.BUY, price, qty)
+        self.order_ts = now
         self.bid_price = price
         self.bid_qty = qty
         self.bid_filled = 0.0
@@ -279,6 +281,7 @@ class Slot:
             price = exits.exit_target(view.fv, self.tick)
             kind = exits.TARGET
         self.exit_id = await broker_.place_limit(self.market, broker.SELL, price, self.qty)
+        self.order_ts = now
         self.exit_price = price
         self.exit_kind = kind
         self.state = EXIT_LIVE

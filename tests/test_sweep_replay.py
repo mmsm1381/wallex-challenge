@@ -111,3 +111,20 @@ def test_replay_before_start_time_does_not_trade(tmp_path) -> None:
     # then
     assert runner.store.rows("trades") == []
     assert runner.store.rows("orders") != []
+
+
+def test_trade_log_text_writes_prices_for_people() -> None:
+    """Toman prices with thousands separators, small quantities in decimals."""
+    # given
+    from sweepbot import executor
+    trade = {"market": "BTCTMN", "qty": 0.00004606, "entry_price": 21_710_052_000.0,
+             "depth_pct": 1.3, "fv_at_bid": 21_996_000_000.0, "exit_price": 21_996_000_000.0,
+             "exit_reason": "target", "hold_s": 2.6, "net_pct": 0.81, "net_tmn": 8138.3}
+
+    # when
+    text = executor.trade_text(trade)
+
+    # then
+    assert text == ("BTCTMN: bought 0.00004606 at 21,710,052,000 (1.30% below fair value"
+                    " 21,996,000,000), sold at 21,996,000,000 by target after 3 s."
+                    " Net +0.81% (+8,138 toman).")

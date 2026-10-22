@@ -14,7 +14,9 @@ asyncio tasks.
 """
 
 import asyncio
+import json
 import logging
+import os
 import pathlib
 import signal
 import time
@@ -176,6 +178,97 @@ class Runner:
                 {"day": day, "summary": summary, "report_markdown": open(path).read()}, now))
         return path
 
+    # Panel -----------------------------------------------------------------
+
+    def live_state(self, now: float) -> dict:
+        """Returns the live state that the panel shows (DESIGN section 15).
+
+        The panel runs as its own process. It reads this state from
+        `state.json` and the history from SQLite.
+        """
+        bot = self.bot
+        risk = bot.risk
+        equity = bot.equity(now)
+        close = risk.usdt_convert_at()
+        slots_out = []
+        for market, slot in sorted(bot.slots.items()):
+            view = bot.views.get(market)
+            plan_slot = bot._slot_plan.get(market)
+            selling = slot.exit_id is not None
+            order_id = slot.exit_id or slot.bid_id
+            slots_out.append({
+                "market": market, "state": slot.state,
+                "depth_pct": (plan_slot.depth_pct if plan_slot else
+                              (view.depth_pct if view and view.want else None)),
+                "fv": view.fv if view else None,
+                "order_side": ("sell" if selling else "buy") if order_id else None,
+                "order_price": (slot.exit_price if selling else slot.bid_price) if order_id else None,
+                "qty": slot.qty if slot.has_position() else (slot.bid_qty if order_id else None),
+                "entry_price": slot.entry_price(),
+                "spread_pct": self.market.spread_pct(market),
+                "age_s": now - (slot.entry_ts or slot.order_ts) if (slot.entry_ts or slot.order_ts) and slot.busy() else None,
+                "block": (view.block or view.entry_block or view.cut) if view else None,
+            })
+        stats = self.market.engine.stats
+        rate, source = self.market.usdt_rate(now)
+        plan = bot.plan
+        plan_out = None
+        if plan is not None:
+            ai_plan = self.supervisor is not None and bot.plan_id is not None and plan.reasoning != "default plan"
+            plan_out = {"id": bot.plan_id, "source": "ai" if ai_plan else "default",
+                        "reasoning": plan.reasoning, "fx_risk": plan.fx_risk, "pause": plan.pause,
+                        "valid_until": None,
+                        "slots": [s.model_dump() for s in plan.slots]}
+        usdt_exposure = bot._usdt_exposure_tmn(now)
+        return {
+            "ts": now, "mode": self.mode,
+            "control": {"paused": bot.paused, "flatten": bot.force_flatten},
+            "halted": risk.halted(now),
+            "end": {"end_ts": risk.end_ts, "flatten_at": risk.flatten_at(),
+                    "usdt_convert_at": close,
+                    "usdttmn_close": close + 1800.0 if close is not None else None},
+            "kpi": {"equity": equity, "start_equity": risk.start_equity, "peak": max(risk.peak, equity),
+                    "drawdown_pct": 100 * (equity / max(risk.peak, equity) - 1),
+                    "open_slots": sum(s.busy() for s in bot.slots.values()),
+                    "max_slots": self.cfg["limits"]["max_slots"],
+                    "usdt_exposure_tmn": usdt_exposure,
+                    "usdt_share_pct": 100 * usdt_exposure / equity if equity else None,
+                    "usdt_limit_pct": 100 * self.cfg["limits"]["max_usdt_share"],
+                    "orders_per_10s": self.cfg["limits"]["orders_per_10s"],
+                    "budget_refused": bot.budget.refused},
+            "slots": slots_out,
+            "health": {"wallex_age_s": now - stats["wallex"]["last"] if stats["wallex"]["last"] else None,
+                       "venues": [{"name": name, "age_s": now - item["last"] if item["last"] else None}
+                                  for name, item in stats.items() if name != "wallex"],
+                       "usdt_rate": rate, "usdt_source": source,
+                       "filters_active": [f"{name}:{key}" for name, key in self.filters.active()]},
+            "plan": plan_out,
+            "ai": ({"enabled": True, **self.supervisor.status()} if self.supervisor
+                   else {"enabled": False, "failures": 0, "running": False, "news": None,
+                         "budget_usd": self.cfg["ai"]["budget_usd"]}),
+            "limits": self.cfg["limits"],
+        }
+
+    def write_state(self, path: str, now: float) -> None:
+        """Writes `live_state` to `path` in one step, so a reader never sees half a file."""
+        tmp = f"{path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as state_file:
+            json.dump(self.live_state(now), state_file, default=str)
+        os.replace(tmp, path)
+
+    def apply_control(self, path: str, now: float) -> None:
+        """Reads the control file of the panel and applies it to the bot.
+
+        A missing or broken file changes nothing.
+        """
+        try:
+            with open(path, encoding="utf-8") as control_file:
+                control = json.load(control_file)
+        except (OSError, ValueError):
+            return
+        self.bot.set_control(paused=bool(control.get("paused")),
+                             flatten=bool(control.get("flatten")), now=now)
+
     async def shutdown(self) -> None:
         """Cancels the open orders and waits for the model tasks."""
         for executor_ in self.executors:
@@ -282,7 +375,15 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     if runner.mode == "live":
         cancelled = await runner.broker.cancel_unknown(market.trade_markets)
         log.warning("LIVE mode: %d old orders cancelled", len(cancelled))
+    out_dir = pathlib.Path(cfg["bot"]["out_dir"])
+    state_path, control_path = str(out_dir / "state.json"), str(out_dir / "control.json")
+
+    async def panel_io(now: float) -> None:
+        runner.apply_control(control_path, now)
+        runner.write_state(state_path, now)
+
     tasks += [asyncio.create_task(every(cfg["bot"]["timer_s"], runner.tick)),
+              asyncio.create_task(every(1.0, panel_io)),
               asyncio.create_task(every(cfg["premium"]["sample_s"], premium)),
               asyncio.create_task(every(cfg["bot"]["status_every_s"], status)),
               asyncio.create_task(every(1.0, runner.ai_step))]

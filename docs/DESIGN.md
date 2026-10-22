@@ -258,3 +258,27 @@ The raw market data stays in the lagcatcher gzip JSONL files, so a replay can ru
 | Reports | Markdown and HTML generated from SQLite, kept in the repo |
 
 Cost estimate of the AI part for the 3-day challenge: about 290 supervisor calls and about 100 other calls, $35 to $45 with `claude-opus-5-5`.
+
+## 15. Panel
+
+A web panel shows the live bot and lets a person pause it or sell all coins. Start it next to the bot: `python -m sweepbot panel`, then open http://127.0.0.1:8765.
+
+| Part | Job |
+|---|---|
+| Bot (`Runner.write_state`) | Writes `<out_dir>/state.json` every second: slots, equity, filters, feeds, plan, endgame times. |
+| Bot (`Runner.apply_control`) | Reads `<out_dir>/control.json` every second and applies it. |
+| `sweepbot/panel.py` | Separate process, standard library only. Serves the page, `GET /api/state` (state file plus today's trades, the decision log and the AI cost from SQLite) and `POST /api/control`. |
+| `sweepbot/panel_static/index.html` | The page. It reads `/api/state` every 2 s. Times show in Tehran time. |
+
+Controls:
+
+* **Pause new bids**: no new bids, the live bids are cancelled. Open positions keep their exits.
+* **Stop and sell all coins**: also sells all positions at once with taker orders (exit reason `flatten`). The USDT stays. The USDT sale runs on its own schedule.
+* Each change goes into the decision log (kind `control`). The control file stays after a restart, so a restarted bot keeps the last controls.
+
+Safety:
+
+* The panel listens on 127.0.0.1 only. On the server, open it through an SSH tunnel: `ssh -L 8765:127.0.0.1:8765 root@server`. The controls have no login, so never bind it to a public address.
+* `POST /api/control` needs `Content-Type: application/json`, so a form on another website cannot send it.
+* A panel crash does not stop the bot. A stopped bot shows as a red banner ("No fresh data") after 10 s.
+

@@ -61,6 +61,7 @@ Sweep bot:
 .venv/bin/python -m sweepbot report --day 2026-10-23          # daily report (Tehran day)
 .venv/bin/python -m sweepbot smoke --market BTCTMN            # task 2.4: one far bid, read back, cancel
 .venv/bin/python -m sweepbot run --mode live --confirm-live   # real orders, team member present
+.venv/bin/python -m sweepbot panel                             # web panel on http://127.0.0.1:8765
 ```
 
 `config.sweep.toml` holds the sweep bot settings. The defaults are in `sweepbot/config.py`.

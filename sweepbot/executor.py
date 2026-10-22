@@ -34,13 +34,22 @@ log = logging.getLogger(__name__)
 PlanSource = Callable[[float], tuple[schema.Plan, int | None]]
 
 
+def _number(value: float) -> str:
+    """Formats a price or a quantity for a person: 21,710,052,000 or 0.00004606."""
+    if abs(value) >= 1000:
+        return f"{value:,.0f}"
+    if abs(value) >= 1:
+        return f"{value:,.4f}".rstrip("0").rstrip(".")
+    return f"{value:.10f}".rstrip("0").rstrip(".")
+
+
 def trade_text(trade: dict) -> str:
     """Returns the rule-based decision log text of one closed trade."""
     net_tmn = trade["net_tmn"]
     money = f"{net_tmn:+,.0f} toman" if net_tmn is not None else "toman value unknown"
-    return (f"{trade['market']}: bought {trade['qty']:.8g} at {trade['entry_price']:.8g}"
-            f" ({trade['depth_pct']:.2f}% below fair value {trade['fv_at_bid']:.8g}),"
-            f" sold at {trade['exit_price']:.8g} by {trade['exit_reason']} after"
+    return (f"{trade['market']}: bought {_number(trade['qty'])} at {_number(trade['entry_price'])}"
+            f" ({trade['depth_pct']:.2f}% below fair value {_number(trade['fv_at_bid'])}),"
+            f" sold at {_number(trade['exit_price'])} by {trade['exit_reason']} after"
             f" {trade['hold_s']:.0f} s. Net {trade['net_pct']:+.2f}% ({money}).")
 
 
@@ -93,6 +102,11 @@ class Executor:
         self.plan_id: int | None = None
         self.plan: schema.Plan | None = None
         self.halt_reason: str | None = None
+        # Set by a person through the panel (DESIGN section 15).
+        self.paused = False
+        self.force_flatten = False
+        # The last view of each slot, for the panel.
+        self.views: dict[str, slots.SlotView] = {}
 
     # Equity ----------------------------------------------------------------
 
@@ -129,7 +143,7 @@ class Executor:
 
     def _wanted(self, plan: schema.Plan, halted: str | None) -> dict[str, schema.SlotPlan]:
         """Returns the slots that the executor may bid on now."""
-        if plan.pause or halted:
+        if plan.pause or halted or self.paused or self.force_flatten:
             return {}
         wanted = {}
         for slot_plan in plan.slots:
@@ -159,7 +173,7 @@ class Executor:
         wanted = self._wanted(self.plan, halted)
         open_count = sum(slot.busy() for slot in self.slots.values())
         usdt_exposure = self._usdt_exposure_tmn(now)
-        flatten = self.risk.must_flatten(now)
+        flatten = self.risk.must_flatten(now) or self.force_flatten
         for market in sorted(set(self.slots) | set(wanted)):
             slot = self.slots.get(market)
             if slot is None:
@@ -170,6 +184,7 @@ class Executor:
             was_busy = slot.busy()
             view = self._view(market, slot, slot_plan, now, open_count,
                               usdt_exposure, equity, flatten)
+            self.views[market] = view
             before = set(slot.order_ids())
             await slot.step(now, view, self.broker, self.budget)
             if self._register_orders(slot, before, now):
@@ -183,6 +198,7 @@ class Executor:
         for market in [m for m, s in self.slots.items() if not s.busy() and m not in wanted
                        and s.state == slots.IDLE]:
             del self.slots[market]
+            self.views.pop(market, None)
         if self.converter is not None:
             await self.converter.step(now)
 
@@ -338,6 +354,26 @@ class Executor:
         self.store.add_log(ts=now, kind="ai", text=f"[{self.mode}] {market}: {decision}. {reason}",
                            fields={"mode": self.mode, "market": market,
                                    "decision": decision, "job": "hold_or_cut"})
+
+    def set_control(self, *, paused: bool, flatten: bool, now: float) -> None:
+        """Applies the controls of a person and logs each change.
+
+        Args:
+            paused: True stops new bids and cancels the live bids. Open
+                positions keep their exits.
+            flatten: True also sells all positions at once with taker orders.
+            now: The time of the change.
+        """
+        changes = []
+        if paused != self.paused:
+            changes.append("bids paused" if paused else "bids resumed")
+        if flatten != self.force_flatten:
+            changes.append("sell all coins now" if flatten else "sell all cancelled")
+        self.paused, self.force_flatten = paused, flatten
+        for change in changes:
+            self.store.add_log(ts=now, kind="control", text=f"[{self.mode}] Person: {change}",
+                               fields={"mode": self.mode, "paused": paused, "flatten": flatten})
+            log.warning("[%s] control: %s", self.mode, change)
 
     # Snapshot --------------------------------------------------------------
 

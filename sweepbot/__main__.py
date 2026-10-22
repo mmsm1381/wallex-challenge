@@ -10,12 +10,14 @@ Commands:
         --ai turns the Claude supervisor on (needs ANTHROPIC_API_KEY).
     python -m sweepbot run --mode live --confirm-live [--config F] [--ai]
         Real orders on Wallex (needs WALLEX_API_KEY, and for the challenge
-        account WALLEX_SUB_ACCOUNT_ID). Only with a team member present.
+        the challenge account key). Only with a team member present.
     python -m sweepbot smoke [--market BTCTMN] [--below 20]
         Task 2.4: places one bid of the minimum value far below the market,
         reads it back and cancels it. Asks for "yes" first.
     python -m sweepbot report --day YYYY-MM-DD [--config F] [--db F]
         Prints the daily report of a Tehran day from the SQLite store.
+    python -m sweepbot panel [--config F] [--host 127.0.0.1] [--port 8765]
+        Serves the web panel: live state, trades, log, pause and sell-all.
 """
 
 import argparse
@@ -151,6 +153,12 @@ def cmd_smoke(args: argparse.Namespace) -> None:
     asyncio.run(smoke(_load(args.config), args.market, args.below))
 
 
+def cmd_panel(args: argparse.Namespace) -> None:
+    """Runs the web panel server."""
+    from sweepbot import panel
+    panel.serve(_load(args.config), host=args.host, port=args.port)
+
+
 def cmd_report(args: argparse.Namespace) -> None:
     """Prints the daily report of one Tehran day."""
     cfg = _load(args.config)
@@ -161,7 +169,7 @@ def main() -> None:
     """Parses the command line and runs the command."""
     parser = argparse.ArgumentParser(prog="sweepbot")
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("replay", "run", "report", "smoke"):
+    for name in ("replay", "run", "report", "smoke", "panel"):
         commands.add_parser(name).add_argument("--config", default="config.sweep.toml")
     replay = commands.choices["replay"]
     replay.add_argument("--raw", required=True, help="lagcatcher raw folder")
@@ -182,6 +190,9 @@ def main() -> None:
     smoke_cmd = commands.choices["smoke"]
     smoke_cmd.add_argument("--market", default="BTCTMN")
     smoke_cmd.add_argument("--below", type=float, default=20.0)
+    panel_cmd = commands.choices["panel"]
+    panel_cmd.add_argument("--host", default="127.0.0.1")
+    panel_cmd.add_argument("--port", type=int, default=8765)
     report_cmd = commands.choices["report"]
     report_cmd.add_argument("--day", required=True)
     report_cmd.add_argument("--db", default=None)
@@ -190,7 +201,7 @@ def main() -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.Formatter.converter = time.gmtime
     {"replay": cmd_replay, "run": cmd_run, "report": cmd_report,
-     "smoke": cmd_smoke}[args.command](args)
+     "smoke": cmd_smoke, "panel": cmd_panel}[args.command](args)
 
 
 if __name__ == "__main__":

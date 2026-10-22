@@ -97,6 +97,12 @@ class Supervisor:
         """Remembers a reason. The next plan call sends it to the model."""
         self._alerts.append(reason)
 
+    def status(self) -> dict:
+        """Returns the state of the supervisor for the panel."""
+        return {"failures": self._failures, "running": self._running,
+                "news": self._news.summary if self._news else None,
+                "budget_usd": self._budget_usd}
+
     def budget_left(self) -> float:
         """Returns the budget in USD that is not spent."""
         return self._budget_usd - self._store.ai_cost_total()

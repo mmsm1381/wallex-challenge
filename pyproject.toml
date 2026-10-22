@@ -16,6 +16,9 @@ dev = ["pytest>=8"]
 [tool.setuptools]
 packages = ["lagcatcher", "sweepbot", "sweepbot.ai"]
 
+[tool.setuptools.package-data]
+sweepbot = ["panel_static/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
