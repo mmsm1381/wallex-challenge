@@ -229,3 +229,7 @@ def test_runner_state_has_the_wallet_in_toman_and_the_usdt_purchase(tmp_path) ->
     assert state["funding"]["usdt"] == pytest.approx(8.0)
     assert state["kpi"]["equity"] == pytest.approx(state["wallet"]["total_tmn"])
     assert run.bot.equity(6.0) < run.bot.model_equity(6.0)  # the purchase paid a fee
+    # If sold now: 8 USDT at the 249,900 bid, minus the 0.30% taker fee.
+    assert wallet["USDT"]["sale_tmn"] == pytest.approx(8.0 * 249_900.0 * 0.997)
+    assert state["kpi"]["wallet_sale_tmn"] == pytest.approx(
+        wallet["TMN"]["total"] + 8.0 * 249_900.0 * 0.997)

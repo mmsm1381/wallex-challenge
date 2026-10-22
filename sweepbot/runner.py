@@ -24,6 +24,7 @@ from collections.abc import Iterable
 
 from lagcatcher import feeds
 from sweepbot import broker
+from sweepbot import config
 from sweepbot import endgame
 from sweepbot import executor
 from sweepbot import filters as filters_mod
@@ -255,6 +256,7 @@ class Runner:
                     "usdt_exposure_tmn": usdt_exposure,
                     "usdt_tmn": wallet["usdt_tmn"] if wallet else None,
                     "wallet_tmn": wallet["total_tmn"] if wallet else None,
+                    "wallet_sale_tmn": wallet["sale_tmn"] if wallet else None,
                     "usdt_share_pct": usdt_share,
                     "usdt_limit_pct": 100 * self.cfg["limits"]["max_usdt_share"],
                     "orders_per_10s": self.cfg["limits"]["orders_per_10s"],
@@ -306,22 +308,53 @@ class Runner:
         mid = self.market.mid(asset + market_mod.USDT)
         return qty * mid * rate if mid and rate else None
 
+    def _best_bid(self, market: str) -> float | None:
+        """Returns the best Wallex bid of `market`, or None."""
+        book = self.market.book(market)
+        return book.best_bid() if book is not None else None
+
+    def asset_sale_tmn(self, asset: str, qty: float) -> float | None:
+        """Returns the toman that a sale of `qty` of `asset` at the best bid gives now.
+
+        The sale pays the taker fee. USDT sells on USDTTMN. A coin sells on
+        its toman market, else on its USDT market and then on USDTTMN. The
+        value moves with every change of the best bid.
+        """
+        tmn_fee = config.fee_rates(market_mod.TMN, self.cfg)[1]
+        usdt_fee = config.fee_rates(market_mod.USDT, self.cfg)[1]
+        if asset == market_mod.TMN:
+            return qty
+        usdt_bid = self._best_bid("USDTTMN")
+        if asset == market_mod.USDT:
+            return qty * usdt_bid * (1 - tmn_fee) if usdt_bid else None
+        bid = self._best_bid(asset + market_mod.TMN)
+        if bid:
+            return qty * bid * (1 - tmn_fee)
+        bid = self._best_bid(asset + market_mod.USDT)
+        if bid and usdt_bid:
+            return qty * bid * (1 - usdt_fee) * usdt_bid * (1 - tmn_fee)
+        return None
+
     def wallet_state(self, now: float) -> dict | None:
         """Returns the wallet for the panel: each asset, its toman value, the total."""
         if self.balances is None:
             return None
         assets = []
         total = 0.0
+        sale_total: float | None = 0.0
         for asset, item in sorted(self.balances.items()):
             if abs(item["total"]) < 1e-12:
                 continue
             value = self.asset_tmn(asset, item["total"], now)
+            sale = self.asset_sale_tmn(asset, item["total"])
             total += value or 0.0
+            sale_total = None if sale is None or sale_total is None else sale_total + sale
             assets.append({"asset": asset, "total": item["total"],
-                           "locked": item["locked"], "tmn": value})
+                           "locked": item["locked"], "tmn": value, "sale_tmn": sale})
         usdt_tmn = sum(a["tmn"] or 0.0 for a in assets if a["asset"] == market_mod.USDT)
         return {"ts": self.balances_ts, "assets": assets, "total_tmn": total,
-                "usdt_tmn": usdt_tmn}
+                "usdt_tmn": usdt_tmn, "sale_tmn": sale_total,
+                "usdt_bid": self._best_bid("USDTTMN")}
 
     def write_state(self, path: str, now: float) -> None:
         """Writes `live_state` to `path` in one step, so a reader never sees half a file."""
