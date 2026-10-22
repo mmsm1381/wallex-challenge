@@ -14,7 +14,9 @@ def test_load_config_without_file_gives_research_defaults() -> None:
     cfg = config.load_config(path)
 
     # then
-    assert cfg["plan"]["depth_pct"] == 1.3
+    assert cfg["plan"]["depth_pct_tmn"] == 1.3
+    assert cfg["plan"]["depth_pct_usdt"] == 1.0
+    assert cfg["limits"]["max_usdt_share"] == 0.40
     assert cfg["plan"]["markets"] == ["ADATMN", "ETHUSDT", "TRXTMN", "ETHTMN", "PEPEUSDT"]
     assert cfg["limits"]["max_slots"] == 5
     assert cfg["filters"]["global_drop_pct"] == 0.3
@@ -26,13 +28,14 @@ def test_load_config_with_partial_file_merges_the_override(tmp_path) -> None:
     """A TOML file changes only the keys that it names."""
     # given
     path = tmp_path / "sweep.toml"
-    path.write_text('[plan]\ndepth_pct = 1.6\n[bot]\nmode = "replay"\n')
+    path.write_text('[plan]\ndepth_pct_tmn = 1.6\n[bot]\nmode = "replay"\n')
 
     # when
     cfg = config.load_config(str(path))
 
     # then
-    assert cfg["plan"]["depth_pct"] == 1.6
+    assert cfg["plan"]["depth_pct_tmn"] == 1.6
+    assert cfg["plan"]["depth_pct_usdt"] == 1.0
     assert cfg["plan"]["size_tmn"] == 1_000_000.0
     assert cfg["bot"]["mode"] == "replay"
     assert cfg["bot"]["db_path"] == "data/sweepbot.db"
@@ -52,8 +55,8 @@ def test_load_config_of_repo_file_is_valid() -> None:
 
 @pytest.mark.parametrize("toml_text", [
     '[bot]\nmode = "fast"\n',
-    "[plan]\ndepth_pct = 0.8\n",
-    "[plan]\ndepth_pct = 3.0\n",
+    "[plan]\ndepth_pct_tmn = 0.8\n",
+    "[plan]\ndepth_pct_usdt = 3.0\n",
     "[plan]\nsize_tmn = 2000000.0\n",
     '[plan]\nmarkets = ["BTCTMN", "BTCTMN"]\n',
     '[plan]\nmarkets = ["FOOTMN"]\n',

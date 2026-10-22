@@ -34,9 +34,13 @@ class ValidationResult:
 
 
 def default_plan(cfg: dict) -> schema.Plan:
-    """Returns the default plan of `cfg["plan"]`: one slot per market."""
+    """Returns the default plan of `cfg["plan"]`: one slot per market.
+
+    The depth of a slot depends on the quote currency of its market.
+    """
     plan = cfg["plan"]
-    slots = [schema.SlotPlan(market=market, depth_pct=plan["depth_pct"],
+    slots = [schema.SlotPlan(market=market,
+                             depth_pct=config.default_depth(cfg, market),
                              size_tmn=plan["size_tmn"])
              for market in plan["markets"]]
     return schema.Plan(valid_minutes=plan["valid_minutes"], slots=slots,

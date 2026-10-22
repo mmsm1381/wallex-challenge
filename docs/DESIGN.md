@@ -20,7 +20,7 @@ Non-goals: short selling (margin is disabled), speed races against other takers,
 |---|---|
 | Fair value (FV) | Median best-quote mid of the global venues x USDTTMN mid (toman markets) x exp(premium). `lagcatcher.engine.Engine.fair_value` computes it. |
 | Premium | Rolling 60-minute median of log(Wallex mid / raw fair value), sampled every 5 s, only from books with a spread of 0.3% or less. |
-| Depth | Distance of our bid below fair value, in percent of fair value. The plan default is 1.3%. |
+| Depth | Distance of our bid below fair value, in percent of fair value. The plan default is 1.3% on toman markets and 1.0% on USDT markets (team decision of 2026-10-22, from `RESEARCH.md` section 3.4). |
 | Sweep | A market sell that trades through several levels of the book in a few milliseconds and leaves the price far below fair value for a short time. |
 | Slot | One market that the plan allows a bid on. The number of slots is limited by the funds. |
 | Plan | The JSON document that sets the slots, depths, sizes and pauses. Claude proposes it. The validator checks it. |
@@ -125,7 +125,7 @@ The config sets these limits. No plan can change them. The validator clamps a pl
 |---|---|
 | Size of one bid | at most 1,000,000 toman (or its USDT value) |
 | Open bids plus positions | at most 5 |
-| Funds in USDT | at most 30% of equity |
+| Funds in USDT | at most 40% of equity, so that the two USDT markets of the default plan can both keep a bid of 1M (team decision of 2026-10-22) |
 | Depth | between 1.0% and 2.5% |
 | Time limit of a position | 15 minutes |
 | Daily loss stop | -1.5% of the equity at the start of the day (Tehran time). Then cancel all bids until the next day. |
@@ -178,7 +178,7 @@ Validator rules: known markets only, no duplicate markets, depth in [1.0, 2.5], 
 
 ### 8.4 Twin
 
-The twin runs the default plan (5 fixed markets, depth 1.3%) with a `PaperBroker` on the same live data. The daily report compares the bot and the twin. This shows the effect of the AI part in numbers.
+The twin runs the default plan (5 fixed markets, depth 1.3% on toman markets and 1.0% on USDT markets) with a `PaperBroker` on the same live data. The daily report compares the bot and the twin. This shows the effect of the AI part in numbers.
 
 ## 9. Broker
 

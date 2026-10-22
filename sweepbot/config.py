@@ -37,10 +37,13 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
             "status_every_s": 60.0},
     # The 5 best markets of the first 30 days of the candle study. They were
     # tested out of sample on the last 31 days (RESEARCH.md section 3.2).
+    # The depth depends on the quote currency (RESEARCH.md section 3.4): the
+    # USDT round trip costs 0.20%, the toman round trip 0.50%.
     "plan": {"markets": ["ADATMN", "ETHUSDT", "TRXTMN", "ETHTMN", "PEPEUSDT"],
-             "depth_pct": 1.3, "size_tmn": 1_000_000.0, "valid_minutes": 30},
+             "depth_pct_tmn": 1.3, "depth_pct_usdt": 1.0,
+             "size_tmn": 1_000_000.0, "valid_minutes": 30},
     "limits": {"max_bid_tmn": 1_000_000.0, "max_slots": 5,
-               "max_usdt_share": 0.30, "min_depth_pct": 1.0,
+               "max_usdt_share": 0.40, "min_depth_pct": 1.0,
                "max_depth_pct": 2.5, "max_hold_s": 900.0,
                "daily_loss_pct": 1.5, "peak_drawdown_pct": 2.5,
                "start_drawdown_pct": 4.0, "stop_before_end_s": 7200.0,
@@ -76,6 +79,12 @@ def trade_markets(cfg: dict) -> list[str]:
             + [f"{coin}TMN" for coin in markets["tmn"]])
 
 
+def default_depth(cfg: dict, market: str) -> float:
+    """Returns the default plan depth of `market`, by its quote currency."""
+    plan = cfg["plan"]
+    return plan["depth_pct_usdt"] if market.endswith("USDT") else plan["depth_pct_tmn"]
+
+
 def validate(cfg: dict) -> None:
     """Raises ValueError when a value of `cfg` breaks a rule.
 
@@ -86,9 +95,10 @@ def validate(cfg: dict) -> None:
         raise ValueError(f"bot.mode must be one of {MODES}, not {cfg['bot']['mode']!r}")
     limits = cfg["limits"]
     plan = cfg["plan"]
-    if not limits["min_depth_pct"] <= plan["depth_pct"] <= limits["max_depth_pct"]:
-        raise ValueError(f"plan.depth_pct {plan['depth_pct']} is outside "
-                         f"[{limits['min_depth_pct']}, {limits['max_depth_pct']}]")
+    for key in ("depth_pct_tmn", "depth_pct_usdt"):
+        if not limits["min_depth_pct"] <= plan[key] <= limits["max_depth_pct"]:
+            raise ValueError(f"plan.{key} {plan[key]} is outside "
+                             f"[{limits['min_depth_pct']}, {limits['max_depth_pct']}]")
     if not 0 < plan["size_tmn"] <= limits["max_bid_tmn"]:
         raise ValueError(f"plan.size_tmn {plan['size_tmn']} is outside "
                          f"(0, {limits['max_bid_tmn']}]")

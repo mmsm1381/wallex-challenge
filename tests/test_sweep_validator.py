@@ -210,11 +210,11 @@ def test_too_many_slots_keeps_the_first_ones() -> None:
 
 
 def test_usdt_share_drops_last_usdt_slots() -> None:
-    """Equity 5,000,000 allows 1,500,000 in USDT. Three USDT slots of 1,000,000 give 3,000,000.
+    """Equity 5,000,000 allows 2,000,000 in USDT. Three USDT slots of 1,000,000 give 3,000,000.
 
     Scenario:
         - Slots: ETHUSDT, ETHTMN, PEPEUSDT, ADAUSDT in this order.
-        - The validator drops ADAUSDT, then PEPEUSDT. ETHUSDT stays.
+        - The validator drops ADAUSDT. ETHUSDT and PEPEUSDT stay.
     """
     # given
     cfg = make_cfg()
@@ -227,8 +227,8 @@ def test_usdt_share_drops_last_usdt_slots() -> None:
 
     # then
     assert result.accepted
-    assert [s.market for s in result.plan.slots] == ["ETHUSDT", "ETHTMN"]
-    assert len(result.notes) == 2
+    assert [s.market for s in result.plan.slots] == ["ETHUSDT", "ETHTMN", "PEPEUSDT"]
+    assert len(result.notes) == 1
 
 
 def test_valid_minutes_is_clamped_to_5_and_120() -> None:
@@ -279,3 +279,23 @@ def test_default_plan_is_valid_and_passes_unchanged() -> None:
     assert result.accepted
     assert result.notes == []
     assert result.plan.model_dump() == plan.model_dump()
+
+
+def test_default_plan_depth_depends_on_the_quote_currency() -> None:
+    """Toman markets bid 1.3% below fair value, USDT markets 1.0%.
+
+    Scenario: the default plan at the start equity of 5M toman.
+    Expected: both USDT slots stay (2M is 40% of 5M), with depth 1.0%.
+    """
+    # given
+    cfg = make_cfg()
+
+    # when
+    result = validator.validate_plan(validator.default_plan(cfg), cfg=cfg,
+                                      equity_tmn=5_000_000.0)
+
+    # then
+    depths = {s.market: s.depth_pct for s in result.plan.slots}
+    assert depths == {"ADATMN": 1.3, "ETHUSDT": 1.0, "TRXTMN": 1.3,
+                      "ETHTMN": 1.3, "PEPEUSDT": 1.0}
+    assert result.notes == []

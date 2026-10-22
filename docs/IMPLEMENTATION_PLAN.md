@@ -16,10 +16,11 @@ Rules for every task:
 - [ ] 0.3 Copy the lagcatcher raw files from the server to a local folder (see `research/README.md` section 3). The recording runs until about 2026-10-23 04:52 UTC. Ask the team before a new run on the shared server.
 - [ ] 0.4 Re-run `research/scripts/sweep_study.py` with the new raw files and `replay_deep_bids.py` on all recorded hours. Run `sweep_scan.py` and add the new sweeps to `RESEARCH.md` section 3.3.
 - [ ] 0.5 Backtest the mixed depth of `RESEARCH.md` section 3.4: 1.3% on toman markets and 1.0% on USDT markets, all markets and 5 markets out of sample. Use it as the default plan only when it beats both fixed depths on net per day and drawdown.
+  * Status 2026-10-22: the team chose the mixed depth for the default plan before this backtest, and raised the USDT limit to 40%. The backtest is still open. Record its result in `RESEARCH.md`, also for the 40% USDT share.
 
 ## Milestone 1: paper sweep bot (about 1 day)
 
-- [x] 1.1 `sweepbot/config.py` and `config.sweep.toml`: markets, default plan (5 markets, depth 1.3%), hard limits (DESIGN section 7), filter thresholds (section 6), mode. Tests: defaults load, TOML override merges, invalid values raise.
+- [x] 1.1 `sweepbot/config.py` and `config.sweep.toml`: markets, default plan (5 markets, depth 1.3% on toman markets and 1.0% on USDT markets), hard limits (DESIGN section 7), filter thresholds (section 6), mode. Tests: defaults load, TOML override merges, invalid values raise.
 - [x] 1.2 `sweepbot/market.py`: wrap the fair value and premium of `lagcatcher.engine.Engine` without the paper strategies. Add the implied USDT rate (median coin TMN mid / coin USDT mid) for the nightly USDTTMN close. Tests: fair value of a toman market, implied rate when USDTTMN is frozen.
 - [x] 1.3 `sweepbot/filters.py`: global drop filter and FX shock filter, with start and end events. Tests: a 0.3% Binance drop trips the global filter. A 0.5% USDTTMN move in 5 minutes trips the FX filter. The filters clear after their wait time.
 - [x] 1.4 `sweepbot/broker.py`: `Broker` protocol and `PaperBroker` with the lagcatcher fill rules (strictly below for a bid, strictly above for a sell, or a book cross). Tests: the fill rules, part fills, cancel.
@@ -67,7 +68,7 @@ Rules for every task:
 
 ## Open questions for the team
 
-* The default plan has two USDT markets (ETHUSDT, PEPEUSDT) of 1M toman each. The USDT limit is 30% of 5M equity (1.5M). So only one USDT bid can rest at a time. Do we keep the 30% limit, or change the default plan? A change needs a new backtest.
+* The USDT limit of 40% fits two USDT bids of 1M only while the equity is 5M or more. After a small loss, the second USDT bid waits until the equity is back.
 
 * When does the challenge start? This sets the deadline for milestones 1 to 3.
 * Does the Wallex order API accept requests from the server outside Iran?

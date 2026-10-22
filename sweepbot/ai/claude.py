@@ -39,7 +39,7 @@ Hard limits. A validator enforces them and cuts any value outside them:
 - Bid depth below fair value: 1.0% to 2.5%.
 - At most 5 slots.
 - At most 1,000,000 toman per bid.
-- The USDT share of the equity is at most 30%.
+- The USDT share of the equity is at most 40%.
 
 Jobs:
 - plan: choose the markets, the depth and the size for the next 30 minutes.

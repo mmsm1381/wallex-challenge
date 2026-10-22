@@ -15,14 +15,16 @@ min_venues = 2
 
 [plan]
 markets = ["ADATMN", "ETHUSDT", "TRXTMN", "ETHTMN", "PEPEUSDT"]
-depth_pct = 1.3
+# Depth below fair value by quote currency (RESEARCH.md section 3.4).
+depth_pct_tmn = 1.3
+depth_pct_usdt = 1.0
 size_tmn = 1000000.0
 valid_minutes = 30
 
 [limits]
 max_bid_tmn = 1000000.0
 max_slots = 5
-max_usdt_share = 0.30
+max_usdt_share = 0.40
 min_depth_pct = 1.0
 max_depth_pct = 2.5
 max_hold_s = 900.0

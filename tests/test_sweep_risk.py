@@ -143,23 +143,36 @@ def test_check_bid_rejects_when_all_slots_are_used() -> None:
 
 
 def test_check_bid_rejects_usdt_share_above_limit() -> None:
-    """On a USDT market, exposure 1,000,000 + bid 600,000 > 30% of 5,000,000."""
+    """On a USDT market, exposure 1,500,000 + bid 600,000 > 40% of 5,000,000."""
     # given
     guard = make_guard()
 
     # when
     over = bid(guard, market="ETHUSDT", size_tmn=600_000.0,
-               usdt_exposure_tmn=1_000_000.0)
+               usdt_exposure_tmn=1_500_000.0)
     edge = bid(guard, market="ETHUSDT", size_tmn=500_000.0,
-               usdt_exposure_tmn=1_000_000.0)
+               usdt_exposure_tmn=1_500_000.0)
     tmn = bid(guard, market="ETHTMN", size_tmn=600_000.0,
-              usdt_exposure_tmn=1_000_000.0)
+              usdt_exposure_tmn=1_500_000.0)
 
     # then
     assert over is not None
     assert "usdt" in over
     assert edge is None
     assert tmn is None
+
+
+def test_two_usdt_bids_of_1m_fit_the_40_pct_limit_at_start_equity() -> None:
+    """The default plan has two USDT markets of 1M. Both fit at 5M equity."""
+    # given
+    guard = make_guard()
+
+    # when
+    second = bid(guard, market="PEPEUSDT", size_tmn=1_000_000.0,
+                 usdt_exposure_tmn=1_000_000.0)
+
+    # then
+    assert second is None
 
 
 def test_daily_stop_trips_and_halts_bids() -> None:

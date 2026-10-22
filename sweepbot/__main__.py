@@ -2,7 +2,7 @@
 
 Commands:
     python -m sweepbot replay --raw DIR [--config F] [--start T] [--end T]
-            [--markets A,B] [--depth PCT] [--db F] [--no-twin]
+            [--markets A,B] [--depth PCT] [--depth-usdt PCT] [--db F] [--no-twin]
         Replays lagcatcher raw files with the paper broker and prints the
         trades. T is ISO 8601 UTC, such as 2026-10-22T07:00:00Z.
     python -m sweepbot run --mode paper [--config F] [--duration S] [--ai]
@@ -56,7 +56,9 @@ def cmd_replay(args: argparse.Namespace) -> None:
     if args.markets:
         cfg["plan"]["markets"] = args.markets.split(",")
     if args.depth is not None:
-        cfg["plan"]["depth_pct"] = args.depth
+        cfg["plan"]["depth_pct_tmn"] = args.depth
+    if args.depth_usdt is not None:
+        cfg["plan"]["depth_pct_usdt"] = args.depth_usdt
     config.validate(cfg)
     start = risk.parse_utc(args.start) if args.start else None
     end = risk.parse_utc(args.end) if args.end else None
@@ -120,7 +122,8 @@ def main() -> None:
     replay.add_argument("--start", default=None)
     replay.add_argument("--end", default=None)
     replay.add_argument("--markets", default=None, help="comma list, replaces plan.markets")
-    replay.add_argument("--depth", type=float, default=None)
+    replay.add_argument("--depth", type=float, default=None, help="depth of toman markets")
+    replay.add_argument("--depth-usdt", type=float, default=None, help="depth of USDT markets")
     replay.add_argument("--db", default=":memory:")
     replay.add_argument("--no-twin", action="store_true")
     run = commands.choices["run"]
