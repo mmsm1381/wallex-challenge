@@ -1,6 +1,6 @@
 # Design: Wallex sweep bot
 
-Status: design for review. No code of the sweep bot exists yet. The evidence for this design is in `RESEARCH.md` section 3. The task list is in `IMPLEMENTATION_PLAN.md`.
+Status: milestone 1 (without the server runs) and milestone 3 (without the real-key call) are built. See `IMPLEMENTATION_PLAN.md` for the open tasks. The evidence for this design is in `RESEARCH.md` section 3. The task list is in `IMPLEMENTATION_PLAN.md`.
 
 ## 1. Goal
 
@@ -50,7 +50,7 @@ flowchart LR
   TW --> DB
 ```
 
-Rule: **the executor never waits for Claude.** A sweep lasts 0.01 to 3 s, and a model call takes 5 to 30 s. The executor works with the last valid plan. It also works with no plan at all (it then uses the default plan of the config).
+Rule: **the executor never waits for Claude.** A sweep lasts 0.01 to 3 s, and a model call takes 5 to 30 s. The executor works with the last valid plan. It also works with no plan at all (it then uses the default plan of the config). The runner starts each model job as a separate asyncio task. The supervisor runs the provider call in a worker thread with a timeout. Plan calls come at most once a minute, also during a burst of alerts.
 
 ## 4. Package layout
 
@@ -64,9 +64,11 @@ The sweep bot is a new package `sweepbot/` in this repo. It imports the parts of
 | `sweepbot/slots.py` | Bid manager: one state machine per slot, requote rule, order budget | `lagcatcher.shadow.TokenBucket` |
 | `sweepbot/exits.py` | Exit order at fair value, time limit, hold-or-cut request | new |
 | `sweepbot/risk.py` | Hard limits, daily loss stop, equity floor, end-of-challenge flattening | new |
+| `sweepbot/executor.py` | One executor tick: broker events, equity, plan, slot views, orders. Runs the bot and the twin. | new |
+| `sweepbot/runner.py` | Wiring of all parts. Replay driver on raw files. Live loop: feeds, 100 ms ticks, premium, status, AI jobs, daily report. | `lagcatcher.feeds` |
 | `sweepbot/broker.py` | `Broker` protocol, `PaperBroker` (lagcatcher fill rules), `WallexBroker` (REST) | `lagcatcher.shadow` fill rules |
 | `sweepbot/store.py` | SQLite schema and writes | new |
-| `sweepbot/ai/provider.py` | `ModelProvider` protocol, so that any model can fill the AI jobs | new |
+| `sweepbot/ai/provider.py` | `ModelProvider` protocol, so that any model can fill the AI jobs. `FakeProvider` for tests. | new |
 | `sweepbot/ai/claude.py` | Claude adapter (`anthropic` SDK, structured output, web search) | new |
 | `sweepbot/ai/schema.py` | pydantic models: `Plan`, `HoldOrCut`, `TradeLog`, `Review` | new |
 | `sweepbot/ai/validator.py` | Clamps a plan to the hard limits, rejects a bad plan | new |
@@ -140,7 +142,10 @@ class ModelProvider(Protocol):
     def hold_or_cut(self, context: PositionContext) -> HoldOrCut: ...
     def write_trade_log(self, trade: TradeRecord) -> TradeLog: ...
     def daily_review(self, day: DaySummary) -> Review: ...
+    def news(self) -> NewsSummary: ...
 ```
+
+The news job runs at most once an hour (`ai.news_every_s`). It is a separate call with the web search tool. Its summary goes into the next supervisor snapshot. A "high" news risk starts a supervisor call. The other jobs use structured output and no tools.
 
 `ClaudeProvider` is the first adapter. It uses the `anthropic` Python SDK, the model `claude-opus-5-5`, structured JSON output, and the web search tool for news. Another model (hosted or open weights) needs only a new adapter. Every provider call has a timeout of 60 s. On a timeout or an invalid answer, the supervisor keeps the last valid plan and logs the failure.
 

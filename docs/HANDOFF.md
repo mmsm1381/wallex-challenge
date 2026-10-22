@@ -254,3 +254,22 @@ The three good fills were real sweeps: BTCTMN 01:40 and 07:03, PEPETMN 09:13 UTC
 * The sweep study scripts are in `research/scripts/` (`sweep_fetch.py`, `sweep_study.py`, `replay_deep_bids.py` and the other analysis scripts of this session).
 * `data/` and `research/data/` are not in git. `research/README.md` tells how to make the data again.
 * This file names the server address. Remove it before the repository becomes public.
+
+## 14. Sweep bot built (2026-10-22, cloud session)
+
+The package `sweepbot/` is built with tests (207 tests in the repository). What exists:
+
+* `config.py`, `config.sweep.toml`: defaults from RESEARCH.md section 3, checks of the hard limits.
+* `market.py`: wraps `lagcatcher.engine.Engine` without strategies. Adds the implied USDT rate (median coin TMN mid / coin USDT mid) when USDTTMN has no update for 300 s.
+* `filters.py`: global drop (0.3% in 60 s, wait 120 s) and FX shock (0.5% in 5 minutes, wait 10 minutes), with start and end events.
+* `broker.py`: `Broker` protocol and `PaperBroker` with the lagcatcher fill rules, a latency of 0.5 s for orders and cancels, and part fills on a book cross.
+* `slots.py`, `exits.py`: the state machine of DESIGN section 5, the requote rule, the order budget with a reserve, the exit at fair value, cuts and cooldowns.
+* `risk.py`, `store.py`, `executor.py`, `runner.py`, `twin.py`, `report.py`, `__main__.py`.
+* `ai/`: plan schema and validator, `ModelProvider`, `ClaudeProvider` (`claude-opus-5-5`, structured output, server-side fallback, web search for news), supervisor with timeout, fallback plan, alerts and the spending limit.
+
+Not done, and why:
+
+* Tasks 0.3, 0.4, 1.8 check, 1.9 run, 3.8: they need the server and the raw files. This session had no server access.
+* Milestone 2: the cloud container cannot reach `api.wallex.ir` (proxy answer 403). The Wallex API documentation was not read, so `WallexBroker` is not written. AGENTS.md forbids guessed endpoints.
+* Task 3.2 manual call: no `ANTHROPIC_API_KEY` in the session.
+* The USDT conversion at the end of the challenge is in the risk guard schedule (`usdt_convert_at`), but no code sells USDT yet. It needs the live broker.

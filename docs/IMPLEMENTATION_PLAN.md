@@ -26,7 +26,9 @@ Rules for every task:
 - [x] 1.6 `sweepbot/risk.py`: hard limits, daily loss stop, equity floor, end-of-challenge schedule. Tests: one test per limit.
 - [x] 1.7 `sweepbot/store.py`: SQLite schema of DESIGN section 10. Tests: write and read back each table.
 - [ ] 1.8 `sweepbot/__main__.py`: `replay` mode on lagcatcher raw files. Done when: the replay of 2026-10-22 07:00 to 07:10 UTC gives one BTCTMN fill near 21.71B and an exit at fair value, and the replay of all recorded hours matches `replay_deep_bids.py` at the same depth within one trade per market.
+  * Status 2026-10-22: code done (`python -m sweepbot replay`). `tests/test_sweep_replay.py` passes on a rebuilt 07:03 sweep (fill at 21.71B, exit at fair value, +0.81%). Open: the run on the real raw files of the server (task 0.3).
 - [ ] 1.9 `paper` mode on live feeds, as a transient systemd unit next to lagcatcher (CPU 50%, memory 400M). Done when: 24 h paper run with no crash, and its fills match a replay of the same hours.
+  * Status 2026-10-22: code done (`python -m sweepbot run --mode paper`). Open: the 24 h run on the server, with the team's agreement.
 
 ## Milestone 2: Wallex order client (about 0.5 day)
 
@@ -39,11 +41,13 @@ Rules for every task:
 
 - [x] 3.1 `sweepbot/ai/schema.py` and `sweepbot/ai/validator.py`: the `Plan` schema of DESIGN section 8.3 and the clamp rules. Tests: one test per limit, a valid plan passes unchanged.
 - [ ] 3.2 `sweepbot/ai/provider.py` and `sweepbot/ai/claude.py`: `ModelProvider` protocol and the Claude adapter (`anthropic` SDK, `claude-opus-5-5`, structured output, web search tool, 60 s timeout). The key comes from `ANTHROPIC_API_KEY`. Log tokens and cost in `ai_calls`. Tests with a fake provider. One manual call with the real key.
-- [ ] 3.3 `sweepbot/ai/supervisor.py`: state snapshot, timer (15 minutes), alert triggers, fallback to the last valid plan, then to the default plan. Tests: timeout keeps the last plan, two failures use the default plan, an alert starts a call.
-- [ ] 3.4 Hold or cut: a request after 5 minutes without an exit fill. The executor acts on "cut" at once. Tests with a fake provider.
-- [ ] 3.5 Decision log and daily review: one `logs` row per trade and per plan change, one review per day. `sweepbot/report.py` writes the daily Markdown report.
-- [ ] 3.6 `sweepbot/twin.py`: the no-AI twin on `PaperBroker` with the default plan. The daily report shows the bot and the twin side by side.
+  * Status 2026-10-22: code and tests done. The plan, hold-or-cut, trade log and review calls use structured output. The news call uses the web search tool. Open: one manual call with the real key.
+- [x] 3.3 `sweepbot/ai/supervisor.py`: state snapshot, timer (15 minutes), alert triggers, fallback to the last valid plan, then to the default plan. Tests: timeout keeps the last plan, two failures use the default plan, an alert starts a call.
+- [x] 3.4 Hold or cut: a request after 5 minutes without an exit fill. The executor acts on "cut" at once. Tests with a fake provider.
+- [x] 3.5 Decision log and daily review: one `logs` row per trade and per plan change, one review per day. `sweepbot/report.py` writes the daily Markdown report.
+- [x] 3.6 `sweepbot/twin.py`: the no-AI twin on `PaperBroker` with the default plan. The daily report shows the bot and the twin side by side.
 - [ ] 3.7 Spending limit: stop model calls when the cost in `ai_calls` reaches a limit from the config. Also set a limit in the Claude Console.
+  * Status 2026-10-22: the limit in the code is done (`ai.budget_usd`, default 50). Open: the limit in the Claude Console.
 - [ ] 3.8 24 h paper run with the AI part on. Done when: plans, hold-or-cut answers and logs are complete, and the cost per day is as expected.
 
 ## Milestone 4: rehearsal and challenge
@@ -60,6 +64,9 @@ Rules for every task:
 - [ ] 5.4 5-minute demo video.
 
 ## Open questions for the team
+
+* The default plan has two USDT markets (ETHUSDT, PEPEUSDT) of 1M toman each. The USDT limit is 30% of 5M equity (1.5M). So only one USDT bid can rest at a time. Do we keep the 30% limit, or change the default plan? A change needs a new backtest.
+* The price and quantity ticks of the markets are not known yet (task 2.1). Until then, the bot does not round prices (`price_ticks` in the config).
 
 * When does the challenge start? This sets the deadline for milestones 1 to 3.
 * Does the Wallex order API accept requests from the server outside Iran?

@@ -9,7 +9,7 @@ A trading bot for the Wallex live-trading challenge of the StarCoach Agentic AI 
 | Research: lag edge | Done. No profit after fees. Dropped. |
 | Research: sweep bids | Done. 60-day backtest is positive with two filters. See `docs/RESEARCH.md`. |
 | `lagcatcher` (feeds, fair value, recorder, replay, paper tests) | Built, 63 tests. Records live data on the shadow-test server. |
-| `sweepbot` (the bot) | Designed (`docs/DESIGN.md`). Not built. Next task: `docs/IMPLEMENTATION_PLAN.md` milestone 1. |
+| `sweepbot` (the bot) | Paper bot, replay, risk guard, AI supervisor (Claude), twin and daily report are built and tested. Open: runs on the server, the Wallex order client (milestone 2). See `docs/IMPLEMENTATION_PLAN.md`. |
 
 ## Key numbers
 
@@ -45,11 +45,23 @@ With only 5 bids at the same time (funds limit), out of sample on the last 31 da
 
 ```bash
 uv venv .venv && uv pip install --python .venv/bin/python -e '.[dev]'
-.venv/bin/python -m pytest -q                 # 63 tests
+.venv/bin/python -m pytest -q                 # all tests
 .venv/bin/python -m lagcatcher check          # 20 s feed check
 .venv/bin/python -m lagcatcher run            # live paper test, Ctrl+C to stop
 .venv/bin/python -m lagcatcher report         # results of the paper test
 ```
+
+Sweep bot:
+
+```bash
+.venv/bin/python -m sweepbot replay --raw data/raw --markets BTCTMN \
+    --start 2026-10-22T07:00:00Z --end 2026-10-22T07:10:00Z   # replay on raw files
+.venv/bin/python -m sweepbot run --mode paper                 # live data, paper broker, twin
+.venv/bin/python -m sweepbot run --mode paper --ai            # with the Claude supervisor
+.venv/bin/python -m sweepbot report --day 2026-10-23          # daily report (Tehran day)
+```
+
+`config.sweep.toml` holds the sweep bot settings. The defaults are in `sweepbot/config.py`.
 
 Reproduce the main backtest (standard library only, about 8 minutes, network needed):
 
@@ -63,12 +75,14 @@ python3 -I research/scripts/sweep_study.py research/data/sweep
 
 ```
 lagcatcher/        live feeds, fair value, paper strategies, recorder, replay, report
-tests/             pytest tests of lagcatcher
+sweepbot/          the sweep bot: market, filters, slots, broker, risk, store, AI, runner
+tests/             pytest tests of lagcatcher and sweepbot
 research/scripts/  research and backtest scripts
 deploy/            server scripts for the shadow test
 docs/              design, plan, research, history, team page
 config.toml        local config of lagcatcher
 config.server.toml server config of lagcatcher
+config.sweep.toml  config of the sweep bot
 ```
 
 `data/` and `research/data/` hold recorded and downloaded data. They are not in git.
