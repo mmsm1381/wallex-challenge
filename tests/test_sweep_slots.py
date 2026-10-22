@@ -289,3 +289,28 @@ def test_order_budget_keeps_a_reserve_for_safety_cancels() -> None:
     assert normal == [True, True, False]
     assert safety is True
     assert budget.take(0.0, safety=True) is False
+
+
+def test_rejected_bid_waits_for_the_reject_cooldown_before_next_bid() -> None:
+    """Wallex rejects the bid (for example: not enough USDT in the account).
+
+    Scenario:
+        - The slot sends a bid at t=0. The broker rejects it at t=0.
+        - Without a wait, the slot sends the same bid on every 100 ms tick,
+          and the rejects use up the order budget of the other slots.
+    Expected: no new bid at t=1. A new bid after the reject cooldown.
+    """
+    # given
+    harness = Harness()
+    harness.step(0.0)
+    rejected = broker.OrderEvent("rejected", harness.slot.bid_id, 0.0, reason="HTTP 400")
+    harness.slot.on_event(rejected)
+
+    # when
+    harness.step(1.0)
+    state_after_1s = harness.slot.state
+    harness.step(harness.cfg["slots"]["reject_cooldown_s"] + 1.0)
+
+    # then
+    assert state_after_1s == slots.IDLE
+    assert harness.slot.state == slots.BID_PENDING

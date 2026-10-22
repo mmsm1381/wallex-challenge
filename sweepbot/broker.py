@@ -119,6 +119,9 @@ class Broker(Protocol):
     async def balances(self) -> dict[str, float]:
         """Returns the free balance per currency."""
 
+    async def balances_detail(self) -> dict[str, dict[str, float]]:
+        """Returns {currency: {"total", "locked"}} for the panel."""
+
     async def poll(self) -> list[OrderEvent]:
         """Returns the order changes since the last call."""
 
@@ -237,6 +240,11 @@ class PaperBroker:
     async def balances(self) -> dict[str, float]:
         """Returns the simulated balances."""
         return dict(self.balance)
+
+    async def balances_detail(self) -> dict[str, dict[str, float]]:
+        """Returns the simulated balances. The paper broker locks no funds."""
+        return {asset: {"total": value, "locked": 0.0}
+                for asset, value in self.balance.items()}
 
     async def poll(self) -> list[OrderEvent]:
         """Returns the order changes since the last call."""

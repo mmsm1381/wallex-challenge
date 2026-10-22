@@ -101,7 +101,7 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
 </header>
 <section class="kpis" id="kpis" aria-label="Key numbers"></section>
 <section class="card" aria-labelledby="endgame-h">
-  <div class="row"><h2 id="endgame-h">Endgame (Tehran time)</h2><span class="note">Final equity counts in toman. USDT must be sold before USDTTMN closes.</span></div>
+  <div class="row"><h2 id="endgame-h">Schedule (Tehran time)</h2><span class="note">The bot buys USDT at the start for the USDT markets. Final equity counts in toman, so USDT must be sold before USDTTMN closes.</span></div>
   <div class="steps" id="steps"></div>
 </section>
 <div class="cols">
@@ -117,6 +117,10 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
   <section class="card" aria-labelledby="log-h"><h2 id="log-h">Decision log</h2><div id="logs"></div></section>
 </div>
 <aside>
+  <section class="card" aria-labelledby="wallet-h">
+    <div class="row"><h2 id="wallet-h">Wallet</h2><span class="note" id="walletNote"></span></div>
+    <div class="scroll"><table><thead><tr><th>Asset</th><th class="r">Amount</th><th class="r">Locked in orders</th><th class="r">Toman value</th></tr></thead><tbody id="wallet"></tbody></table></div>
+  </section>
   <section class="card" aria-labelledby="plan-h">
     <div class="row"><h2 id="plan-h">AI plan</h2><span class="note" id="planHead"></span></div>
     <div id="plan" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -226,6 +230,11 @@ function renderKpis(d){
   var net = k.net_today_bot, ratio = function(a, b){ return isNum(a) && isNum(b) && b !== 0 ? a / b * 100 : 0; };
   box.appendChild(kpiCard('Equity (toman)', money(k.equity), C.ink, ratio(k.equity, k.peak), C.accent,
     'Start ' + money(k.start_equity) + ' · peak ' + money(k.peak)));
+  var w = d.wallet, parts = [];
+  if (w && w.assets) w.assets.forEach(function(a){ parts.push(a.asset + ' ' + qty(a.total)); });
+  box.appendChild(kpiCard('Wallet (toman)', w ? money(w.total_tmn) : '—', C.ink,
+    ratio(w ? w.total_tmn : null, k.start_equity), C.accent,
+    w ? parts.join(' · ') : 'Not read yet'));
   box.appendChild(kpiCard('Net today', smoney(net), isNum(net) && net < 0 ? C.red : C.green,
     Math.abs(ratio(net, k.start_equity)) * 100, isNum(net) && net < 0 ? C.red : C.green,
     'Twin ' + smoney(k.net_today_twin) + ' · ' + (k.trades_today == null ? '—' : k.trades_today) + ' trades, ' + (k.wins_today == null ? '—' : k.wins_today) + ' wins'));
@@ -241,7 +250,7 @@ function renderKpis(d){
     ratio(k.open_slots, k.max_slots), C.accent, bids + ' bids live, ' + pos + ' in position'));
   box.appendChild(kpiCard('USDT share', isNum(k.usdt_share_pct) ? k.usdt_share_pct.toFixed(0) + '%' : '—', C.ink,
     ratio(k.usdt_share_pct, k.usdt_limit_pct), C.blue,
-    'Limit ' + (k.usdt_limit_pct == null ? '—' : k.usdt_limit_pct) + '% of equity · ' + money(k.usdt_exposure_tmn) + ' toman'));
+    'Limit ' + (k.usdt_limit_pct == null ? '—' : k.usdt_limit_pct) + '% · holding ' + money(isNum(k.usdt_tmn) ? k.usdt_tmn : k.usdt_exposure_tmn) + ' toman'));
   box.appendChild(kpiCard('AI spend', isNum(k.ai_cost_usd) ? '$' + k.ai_cost_usd.toFixed(2) : '—', C.ink,
     ratio(k.ai_cost_usd, k.ai_budget_usd), C.blue,
     'Budget $' + (k.ai_budget_usd == null ? '—' : k.ai_budget_usd) + ' · ' + (k.ai_calls == null ? '—' : k.ai_calls) + ' calls'));
@@ -256,7 +265,20 @@ function renderEndgame(d){
     ['end_ts', 'Challenge ends', 'Stop the bot. Export the decision log and the report.']
   ];
   var now = nowSrv(), nextDone = false;
-  $('endgame-h').textContent = 'Endgame' + (isNum(e.end_ts) ? ' · ' + dateStr(e.end_ts) : '') + ' (Tehran time)';
+  $('endgame-h').textContent = 'Schedule' + (isNum(e.end_ts) ? ' · ends ' + dateStr(e.end_ts) : '') + ' (Tehran time)';
+  var f = d.funding;
+  if (f) {
+    var fs = el('div', 'step' + (f.done ? ' done' : ' next')), ftop = el('div', 'top');
+    ftop.appendChild(el('span', 't mono', hms(f.done_at || f.started_at)));
+    ftop.appendChild(el('span', 'tag', f.done ? 'DONE' : (f.note === 'buying' ? 'BUYING' : 'WAITING')));
+    fs.appendChild(ftop);
+    fs.appendChild(el('span', '', 'Buy USDT on USDTTMN (start)', 'font-size:13px;font-weight:500'));
+    fs.appendChild(el('span', 'note', f.done && isNum(f.usdt)
+      ? 'Bought: holds ' + qty(f.usdt) + ' USDT ≈ ' + money(f.usdt_tmn) + ' toman (target ' + money(f.target_tmn) + ').'
+      : 'Target ' + money(f.target_tmn) + ' toman of USDT. USDT bids wait for it.'));
+    box.appendChild(fs);
+    if (!f.done) nextDone = true;
+  }
   defs.forEach(function(df){
     var ts = e[df[0]], tag = 'PLANNED', cls = 'step';
     if (isNum(ts)) {
@@ -274,6 +296,32 @@ function renderEndgame(d){
 }
 
 function td(text, cls, style){ return el('td', cls || '', text, style); }
+function qty(v){
+  if (!isNum(v)) return '—';
+  var a = Math.abs(v);
+  return a >= 1000 ? Math.round(v).toLocaleString('en-US') : (a >= 1 ? v.toFixed(4) : v.toPrecision(4)).replace(/\.?0+$/, '');
+}
+function renderWallet(d){
+  var w = d.wallet, tb = $('wallet'); clear(tb);
+  if (!w || !w.assets || !w.assets.length) {
+    var r0 = el('tr'); r0.appendChild(td('Not read yet', 'none', '')); r0.firstChild.colSpan = 4; tb.appendChild(r0);
+    $('walletNote').textContent = ''; return;
+  }
+  w.assets.forEach(function(a){
+    var r = el('tr');
+    r.appendChild(td(a.asset, '', 'font-weight:500'));
+    r.appendChild(td(qty(a.total), 'r'));
+    r.appendChild(td(a.locked ? qty(a.locked) : '0', 'r'));
+    r.appendChild(td(money(a.tmn), 'r'));
+    tb.appendChild(r);
+  });
+  var t = el('tr');
+  t.appendChild(td('Total', '', 'font-weight:600'));
+  t.appendChild(td('', 'r')); t.appendChild(td('', 'r'));
+  t.appendChild(td(money(w.total_tmn), 'r', 'font-weight:600'));
+  tb.appendChild(t);
+  $('walletNote').textContent = isNum(w.ts) ? 'read ' + Math.max(0, Math.round(nowSrv() - w.ts)) + ' s ago' : '';
+}
 function emptyRow(tb, cols){
   var tr = el('tr'), c = td('None yet.', '', 'color:' + C.dim); c.colSpan = cols; tr.appendChild(c); tb.appendChild(tr);
 }
@@ -427,7 +475,7 @@ function renderBanner(){
 function render(){
   var d = S.data;
   if (d) {
-    renderHeader(d); renderKpis(d); renderEndgame(d); renderSlots(d); renderTrades(d);
+    renderHeader(d); renderKpis(d); renderEndgame(d); renderSlots(d); renderTrades(d); renderWallet(d);
     renderLogs(d); renderPlan(d); renderHold(d); renderHealth(d); renderLimits(d);
   }
   renderBanner();

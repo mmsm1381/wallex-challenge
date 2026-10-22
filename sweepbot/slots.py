@@ -18,7 +18,9 @@ of the broker and changes the state:
 
 A part fill of the bid cancels the rest of the bid. The exit then sells
 all filled coins. The cooldown is 60 s after a closed trade and 5 minutes
-after a loss.
+after a loss. A rejected bid also starts a cooldown (`reject_cooldown_s`).
+Without it, a bid that Wallex always rejects (for example for missing
+funds) is sent again on every tick and uses up the order budget.
 """
 
 import dataclasses
@@ -149,6 +151,7 @@ class Slot:
         self._requote_pct = slots["requote_pct"]
         self._cooldown_s = slots["cooldown_s"]
         self._loss_cooldown_s = slots["loss_cooldown_s"]
+        self._reject_cooldown_s = slots["reject_cooldown_s"]
         self._cut_slippage_pct = slots["cut_slippage_pct"]
         self.state = IDLE
         self.order_ts: float | None = None
@@ -349,8 +352,11 @@ class Slot:
                 self.state = IN_POSITION
             else:
                 self.state = IDLE
+                if event.kind == "rejected":
+                    self.cooldown_until = event.ts + self._reject_cooldown_s
                 self.log.append(f"bid {event.kind}"
-                                + (" for requote" if after == "requote" else ""))
+                                + (" for requote" if after == "requote" else "")
+                                + (f": {event.reason}" if event.reason else ""))
 
     def _on_exit_event(self, event: broker.OrderEvent, fill_id: object) -> None:
         """Applies an event of the exit."""

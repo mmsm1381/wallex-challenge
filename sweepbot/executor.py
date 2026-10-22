@@ -62,7 +62,7 @@ class Executor:
                  plan_source: PlanSource,
                  on_trade: Callable[[dict], None] | None = None,
                  on_hold_or_cut: Callable[[dict], None] | None = None,
-                 converter=None) -> None:
+                 converter=None, funder=None) -> None:
         """Wires the parts.
 
         Args:
@@ -78,6 +78,8 @@ class Executor:
             on_hold_or_cut: Called with the context of a position that has
                 no exit fill after `slots.hold_or_cut_after_s`.
             converter: The `endgame.UsdtConverter` of the bot, or None.
+            funder: The `funding.UsdtFunder` of the bot, or None. Until it
+                is done, no new bid goes to a USDT market.
         """
         self.cfg = cfg
         self.market = market
@@ -90,6 +92,7 @@ class Executor:
         self.on_trade = on_trade
         self.on_hold_or_cut = on_hold_or_cut
         self.converter = converter
+        self.funder = funder
         limits = cfg["limits"]
         self.budget = slots.OrderBudget(limits["orders_per_10s"], limits["safety_reserve"])
         self.rules = rules_mod.load_rules(cfg["bot"]["market_rules"])
@@ -199,6 +202,8 @@ class Executor:
                        and s.state == slots.IDLE]:
             del self.slots[market]
             self.views.pop(market, None)
+        if self.funder is not None:
+            await self.funder.step(now)
         if self.converter is not None:
             await self.converter.step(now)
 
@@ -222,6 +227,8 @@ class Executor:
             spread = self.market.spread_pct(market)
             if spread is None or spread > self.cfg["filters"]["max_spread_pct"]:
                 entry_block = "wide_spread"
+            elif not is_tmn and self.funder is not None and not self.funder.done:
+                entry_block = "usdt_funding"
             else:
                 entry_block = self.risk.check_bid(
                     now=now, market=market, size_tmn=slot_plan.size_tmn,

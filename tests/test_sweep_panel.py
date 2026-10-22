@@ -189,3 +189,41 @@ def test_http_server_serves_state_and_guards_controls(tmp_path) -> None:
     assert json_status == 200 and json.loads(json_body)["control"]["paused"] is True
     assert bad_status == 400
     assert panel.read_control(str(tmp_path / "c.json")) == {"paused": True, "flatten": False}
+
+
+def test_runner_state_has_the_wallet_in_toman_and_the_usdt_purchase(tmp_path) -> None:
+    """The panel shows every asset, not only toman, and the USDT purchase step.
+
+    Scenario:
+        - Paper runner with a 40% USDT target. The paper wallet starts with
+          5,000,000 toman. The USDTTMN book is 249,900 / 250,000.
+        - The funder buys 8.00 USDT. The wallet is read after the fill.
+    Expected: the wallet has TMN and USDT with toman values, the USDT share
+    is about 40%, and the funding step is done with its time.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["bot"]["market_rules"] = ""
+    cfg["funding"]["usdt_target_share"] = 0.4
+    run = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                            start_ts=0.0, with_twin=False)
+    run.market.on_book("USDTTMN", "bid", [(249_900.0, 100.0)], 0.0)
+    run.market.on_book("USDTTMN", "ask", [(250_000.0, 100.0)], 0.0)
+    asyncio.run(run.tick(0.0))
+    run.market.on_book("USDTTMN", "ask", [(250_000.0, 100.0)], 1.0)
+    asyncio.run(run.tick(6.0))
+
+    # when
+    asyncio.run(run.refresh_balances(6.0))
+    state = run.live_state(6.0)
+
+    # then
+    wallet = {a["asset"]: a for a in state["wallet"]["assets"]}
+    assert set(wallet) == {"TMN", "USDT"}
+    assert wallet["USDT"]["total"] == pytest.approx(8.0)
+    assert wallet["USDT"]["tmn"] == pytest.approx(8.0 * 249_950.0)
+    assert state["kpi"]["usdt_share_pct"] == pytest.approx(40.0, abs=0.5)
+    assert state["funding"]["done"] is True
+    assert state["funding"]["done_at"] == 6.0
+    assert state["funding"]["usdt"] == pytest.approx(8.0)

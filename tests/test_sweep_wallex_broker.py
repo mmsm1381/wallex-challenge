@@ -320,6 +320,22 @@ def test_balances_reads_value_per_asset() -> None:
     assert balances == {"TMN": 309969.0, "USDT": 0.5}
 
 
+def test_balances_detail_keeps_total_and_locked() -> None:
+    """The panel wallet needs the total and the locked part of each asset."""
+    # given
+    wallex, transport, _, _ = make()
+    transport.add("GET", "/v1/account/balances", (200, {"success": True, "result": {"balances": {
+        "TMN": {"asset": "TMN", "value": "3001993", "locked": "950000"},
+        "USDT": {"asset": "USDT", "value": "7.34789", "locked": "0"}}}}))
+
+    # when
+    detail = run(wallex.balances_detail())
+
+    # then
+    assert detail == {"TMN": {"total": 3001993.0, "locked": 950000.0},
+                      "USDT": {"total": 7.34789, "locked": 0.0}}
+
+
 def test_from_env_without_key_raises(monkeypatch) -> None:
     """The live broker needs WALLEX_API_KEY."""
     # given

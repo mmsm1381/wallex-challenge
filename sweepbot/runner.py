@@ -27,6 +27,7 @@ from sweepbot import broker
 from sweepbot import endgame
 from sweepbot import executor
 from sweepbot import filters as filters_mod
+from sweepbot import funding
 from sweepbot import market as market_mod
 from sweepbot import report
 from sweepbot import risk as risk_mod
@@ -73,10 +74,16 @@ class Runner:
         if live_broker is not None:
             self.broker = live_broker
         else:
-            self.broker = broker.PaperBroker(cfg, name=mode)
+            # The paper wallet starts like the challenge account: toman only.
+            self.broker = broker.PaperBroker(
+                cfg, name=mode,
+                balances={"TMN": float(cfg["challenge"]["start_equity_tmn"])})
             self.market.add_listener(on_book=self.broker.on_book,
                                      on_trade=self.broker.on_trade)
         self._tasks: set[asyncio.Task] = set()
+        # The last wallet read for the panel: {asset: {"total", "locked"}}.
+        self.balances: dict | None = None
+        self.balances_ts: float | None = None
         self._last_plan_call = -MIN_PLAN_GAP_S
         if supervisor is None:
             plan = validator.default_plan(cfg)
@@ -94,9 +101,18 @@ class Runner:
             broker_=self.broker,
             rule=rule_set.get(endgame.MARKET, rules_mod.MarketRule()),
             slippage_pct=cfg["slots"]["cut_slippage_pct"], store=store, mode=mode)
+        funder = None
+        share = cfg["funding"]["usdt_target_share"]
+        if share > 0:
+            funder = funding.UsdtFunder(
+                target_tmn=share * bot_risk.start_equity, market=self.market,
+                broker_=self.broker,
+                rule=rule_set.get(funding.MARKET, rules_mod.MarketRule()),
+                slippage_pct=cfg["funding"]["slippage_pct"], store=store, mode=mode,
+                stop_at=bot_risk.flatten_at())
         self.bot = executor.Executor(
             cfg, market=self.market, broker_=self.broker, store=store, mode=mode,
-            risk=bot_risk, filters=self.filters, converter=converter,
+            risk=bot_risk, filters=self.filters, converter=converter, funder=funder,
             plan_source=plan_source,
             on_trade=self._on_trade if supervisor else None,
             on_hold_or_cut=self._on_hold_or_cut if supervisor else None)
@@ -220,6 +236,11 @@ class Runner:
                         "valid_until": None,
                         "slots": [s.model_dump() for s in plan.slots]}
         usdt_exposure = bot._usdt_exposure_tmn(now)
+        wallet = self.wallet_state(now)
+        if wallet and wallet["total_tmn"]:
+            usdt_share = 100 * wallet["usdt_tmn"] / wallet["total_tmn"]
+        else:
+            usdt_share = 100 * usdt_exposure / equity if equity else None
         return {
             "ts": now, "mode": self.mode,
             "control": {"paused": bot.paused, "flatten": bot.force_flatten},
@@ -232,11 +253,15 @@ class Runner:
                     "open_slots": sum(s.busy() for s in bot.slots.values()),
                     "max_slots": self.cfg["limits"]["max_slots"],
                     "usdt_exposure_tmn": usdt_exposure,
-                    "usdt_share_pct": 100 * usdt_exposure / equity if equity else None,
+                    "usdt_tmn": wallet["usdt_tmn"] if wallet else None,
+                    "wallet_tmn": wallet["total_tmn"] if wallet else None,
+                    "usdt_share_pct": usdt_share,
                     "usdt_limit_pct": 100 * self.cfg["limits"]["max_usdt_share"],
                     "orders_per_10s": self.cfg["limits"]["orders_per_10s"],
                     "budget_refused": bot.budget.refused},
             "slots": slots_out,
+            "wallet": wallet,
+            "funding": bot.funder.status() if bot.funder is not None else None,
             "health": {"wallex_age_s": now - stats["wallex"]["last"] if stats["wallex"]["last"] else None,
                        "venues": [{"name": name, "age_s": now - item["last"] if item["last"] else None}
                                   for name, item in stats.items() if name != "wallex"],
@@ -248,6 +273,51 @@ class Runner:
                          "budget_usd": self.cfg["ai"]["budget_usd"]}),
             "limits": self.cfg["limits"],
         }
+
+    async def refresh_balances(self, now: float) -> None:
+        """Reads the wallet of the bot's broker for the panel.
+
+        A failed read keeps the last value. The panel shows its age.
+        """
+        try:
+            self.balances = await self.bot.broker.balances_detail()
+            self.balances_ts = now
+        except RuntimeError as error:
+            log.warning("balance read failed: %s", error)
+
+    def asset_tmn(self, asset: str, qty: float, now: float) -> float | None:
+        """Returns the toman value of `qty` of `asset`, or None when unknown.
+
+        A coin uses the mid of its toman market, else the mid of its USDT
+        market times the USDT rate.
+        """
+        if asset == market_mod.TMN:
+            return qty
+        rate, _ = self.market.usdt_rate(now)
+        if asset == market_mod.USDT:
+            return qty * rate if rate else None
+        mid = self.market.mid(asset + market_mod.TMN)
+        if mid:
+            return qty * mid
+        mid = self.market.mid(asset + market_mod.USDT)
+        return qty * mid * rate if mid and rate else None
+
+    def wallet_state(self, now: float) -> dict | None:
+        """Returns the wallet for the panel: each asset, its toman value, the total."""
+        if self.balances is None:
+            return None
+        assets = []
+        total = 0.0
+        for asset, item in sorted(self.balances.items()):
+            if abs(item["total"]) < 1e-12:
+                continue
+            value = self.asset_tmn(asset, item["total"], now)
+            total += value or 0.0
+            assets.append({"asset": asset, "total": item["total"],
+                           "locked": item["locked"], "tmn": value})
+        usdt_tmn = sum(a["tmn"] or 0.0 for a in assets if a["asset"] == market_mod.USDT)
+        return {"ts": self.balances_ts, "assets": assets, "total_tmn": total,
+                "usdt_tmn": usdt_tmn}
 
     def write_state(self, path: str, now: float) -> None:
         """Writes `live_state` to `path` in one step, so a reader never sees half a file."""
@@ -378,12 +448,15 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     out_dir = pathlib.Path(cfg["bot"]["out_dir"])
     state_path, control_path = str(out_dir / "state.json"), str(out_dir / "control.json")
 
+    await runner.refresh_balances(time.time())
+
     async def panel_io(now: float) -> None:
         runner.apply_control(control_path, now)
         runner.write_state(state_path, now)
 
     tasks += [asyncio.create_task(every(cfg["bot"]["timer_s"], runner.tick)),
               asyncio.create_task(every(1.0, panel_io)),
+              asyncio.create_task(every(cfg["bot"]["balances_every_s"], runner.refresh_balances)),
               asyncio.create_task(every(cfg["premium"]["sample_s"], premium)),
               asyncio.create_task(every(cfg["bot"]["status_every_s"], status)),
               asyncio.create_task(every(1.0, runner.ai_step))]

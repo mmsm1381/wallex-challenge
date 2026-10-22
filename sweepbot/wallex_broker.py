@@ -259,6 +259,17 @@ class WallexBroker:
         return {item["asset"]: _num(item.get("value")) - _num(item.get("locked"))
                 for item in items if "asset" in item}
 
+    async def balances_detail(self) -> dict[str, dict[str, float]]:
+        """Returns {asset: {"total", "locked"}}: `value` and `locked` of Wallex."""
+        status, data = await self._send("GET", "/v1/account/balances")
+        if status != 200 or not data:
+            raise RuntimeError(f"balances failed: HTTP {status}")
+        balances = (data.get("result") or {}).get("balances") or {}
+        items = balances.values() if isinstance(balances, dict) else balances
+        return {item["asset"]: {"total": _num(item.get("value")),
+                                "locked": _num(item.get("locked"))}
+                for item in items if "asset" in item}
+
     async def poll(self) -> list[broker.OrderEvent]:
         """Reads the order changes at most every `poll_s` and returns the events."""
         now = self._clock()

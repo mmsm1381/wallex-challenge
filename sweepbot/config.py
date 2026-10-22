@@ -11,6 +11,7 @@ for the feeds and the fair value, and adds its own sections:
 * `filters`: the thresholds of DESIGN section 6.
 * `slots`: the requote rule, the order budget and the cooldowns.
 * `paper`: the latency and the fill rules of the paper broker.
+* `funding`: the USDT to buy at the start for the USDT markets.
 * `challenge`: the start equity and the end of the challenge.
 * `ai`: the model provider, the timer and the spending limit.
 
@@ -34,7 +35,9 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
             "db_path": "data/sweepbot.db", "timer_s": 0.1,
             # Price ticks and quantity steps per market. "" turns rounding off.
             "market_rules": "research/wallex_markets.json",
-            "status_every_s": 60.0},
+            "status_every_s": 60.0,
+            # How often the panel wallet is read from the exchange.
+            "balances_every_s": 10.0},
     # The 5 best markets of the first 30 days of the candle study. They were
     # tested out of sample on the last 31 days (RESEARCH.md section 3.2).
     # The depth depends on the quote currency (RESEARCH.md section 3.4): the
@@ -54,9 +57,13 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
                 "wallex_stale_s": 5.0, "max_spread_pct": 1.0,
                 "usdttmn_frozen_s": 300.0},
     "slots": {"requote_pct": 0.2, "cooldown_s": 60.0,
-              "loss_cooldown_s": 300.0, "hold_or_cut_after_s": 300.0,
+              "loss_cooldown_s": 300.0, "reject_cooldown_s": 60.0,
+              "hold_or_cut_after_s": 300.0,
               "cut_slippage_pct": 2.0},
     "paper": {"latency_s": 0.5},
+    # USDT to buy at the start, as a part of the start equity. 0 turns the
+    # purchase off. It must not be above limits.max_usdt_share.
+    "funding": {"usdt_target_share": 0.0, "slippage_pct": 0.3},
     # Times are ISO 8601 UTC, such as "2026-11-01T08:00:00Z". An empty end
     # turns the end-of-challenge schedule off.
     "challenge": {"start_equity_tmn": 5_000_000.0, "end_utc": ""},
@@ -117,6 +124,8 @@ def validate(cfg: dict) -> None:
         raise ValueError("limits.max_usdt_share must be in [0, 1]")
     if limits["safety_reserve"] < 0:
         raise ValueError("limits.safety_reserve must be zero or more")
+    if not 0 <= cfg["funding"]["usdt_target_share"] <= limits["max_usdt_share"]:
+        raise ValueError("funding.usdt_target_share must be in [0, limits.max_usdt_share]")
     if cfg["ai"]["budget_usd"] < 0:
         raise ValueError("ai.budget_usd must be zero or more")
 

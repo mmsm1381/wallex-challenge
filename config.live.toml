@@ -1,0 +1,61 @@
+# Live settings for the challenge account.
+# The account starts with toman only. At the start the bot buys USDT for 40%
+# of the start equity (funding section), so the plan can use the two USDT
+# markets of the candle study (RESEARCH.md 3.2 and 3.4). The bot sells all
+# USDT before the last USDTTMN close. Bid size 950,000 leaves room for fees
+# and rounding: 3 toman bids need 2.85M of the 3M toman, 2 USDT bids need
+# 1.9M of the 2M toman in USDT.
+# Missing keys use sweepbot/config.py DEFAULTS.
+# The numbers come from docs/RESEARCH.md section 3. Change them only after a
+# new backtest.
+
+[bot]
+mode = "live"
+out_dir = "data/sweepbot-live"
+db_path = "data/sweepbot-live.db"
+
+[venues]
+# The server outside Iran also reaches Binance (port 443) and OKX.
+enabled = ["bybit", "kucoin", "gate"]
+max_quote_age_s = 10.0
+min_venues = 2
+
+[plan]
+markets = ["ADATMN", "ETHUSDT", "TRXTMN", "ETHTMN", "PEPEUSDT"]
+# Depth below fair value by quote currency (RESEARCH.md section 3.4).
+depth_pct_tmn = 1.3
+depth_pct_usdt = 1.0
+size_tmn = 950000.0
+valid_minutes = 30
+
+[limits]
+max_bid_tmn = 1000000.0
+max_slots = 5
+max_usdt_share = 0.40
+min_depth_pct = 1.0
+max_depth_pct = 2.5
+max_hold_s = 900.0
+daily_loss_pct = 1.5
+peak_drawdown_pct = 2.5
+start_drawdown_pct = 4.0
+stop_before_end_s = 7200.0
+
+[challenge]
+start_equity_tmn = 5000000.0
+# End of the challenge: 2026-10-23 23:50 Tehran = 20:20 UTC.
+# With this end, the bot stops bids and sells all coins from 21:50 Tehran
+# (18:20 UTC), and sells all USDT from 23:00 Tehran (19:30 UTC), 30 minutes
+# before the USDTTMN close at 23:30 Tehran.
+end_utc = "2026-10-23T20:20:00Z"
+
+[funding]
+usdt_target_share = 0.40
+slippage_pct = 0.3
+
+[ai]
+enabled = false
+model = "claude-opus-5-5"
+timeout_s = 60.0
+supervisor_every_s = 900.0
+# Model calls stop when the cost in the ai_calls table reaches this limit.
+budget_usd = 50.0

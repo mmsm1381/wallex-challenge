@@ -135,6 +135,10 @@ The config sets these limits. No plan can change them. The validator clamps a pl
 | Equity floor | -2.5% from the peak, or -4% from the start. Then cancel all bids and alert the team. |
 | End of challenge | Stop new bids and sell all coins 2 h before the end, and at the latest 30 minutes before the USDT sale. Sell all USDT on USDTTMN from 30 minutes before the last USDTTMN close (23:30 Tehran, 20:00 UTC). `sweepbot/endgame.py` sends the USDT sale and replaces an order that stays open for 30 s. |
 
+### 7.1 USDT purchase at the start
+
+The challenge account starts with toman only. With `funding.usdt_target_share` above 0, `sweepbot/funding.py` buys USDT on USDTTMN for that part of the start equity before the first USDT-market bid. It counts the USDT that the account already holds, so a restart does not buy again. Until it is done, the executor sends no bid on a USDT market. `endgame.UsdtConverter` sells all USDT before the last USDTTMN close. The USDT holding carries currency risk. `config.live.toml` uses 40%.
+
 ## 8. AI part
 
 ### 8.1 Provider interface
@@ -265,7 +269,7 @@ A web panel shows the live bot and lets a person pause it or sell all coins. Sta
 
 | Part | Job |
 |---|---|
-| Bot (`Runner.write_state`) | Writes `<out_dir>/state.json` every second: slots, equity, filters, feeds, plan, endgame times. |
+| Bot (`Runner.write_state`) | Writes `<out_dir>/state.json` every second: slots, equity, filters, feeds, plan, endgame times, the wallet (every asset with its toman value, read from the broker every `bot.balances_every_s`) and the state of the USDT purchase. |
 | Bot (`Runner.apply_control`) | Reads `<out_dir>/control.json` every second and applies it. |
 | `sweepbot/panel.py` | Separate process, standard library only. Serves the page, `GET /api/state` (state file plus today's trades, the decision log and the AI cost from SQLite) and `POST /api/control`. |
 | `sweepbot/panel_static/index.html` | The page. It reads `/api/state` every 2 s. Times show in Tehran time. |

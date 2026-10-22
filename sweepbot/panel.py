@@ -113,6 +113,7 @@ def build_payload(*, state_path: str, db_path: str, control_path: str, now: floa
         "control": read_control(control_path),
         "halted": state.get("halted"), "end": state.get("end") or {},
         "kpi": kpi, "slots": state.get("slots") or [], "health": state.get("health") or {},
+        "wallet": state.get("wallet"), "funding": state.get("funding"),
         "plan": state.get("plan"), "ai": state.get("ai") or {"enabled": False},
         "trades": trades, "logs": logs, "limits": state.get("limits") or {},
     }
