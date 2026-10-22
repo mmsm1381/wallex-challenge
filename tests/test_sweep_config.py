@@ -73,3 +73,21 @@ def test_load_config_with_invalid_value_raises(tmp_path, toml_text: str) -> None
     # when / then
     with pytest.raises(ValueError):
         config.load_config(str(path))
+
+
+def test_repo_config_sells_usdt_before_the_usdttmn_close() -> None:
+    """The challenge ends 2026-10-23 23:50 Tehran. USDTTMN closes at 23:30.
+
+    Expected: coins from 21:50 Tehran, USDT from 23:00 Tehran.
+    """
+    # given
+    from sweepbot import risk
+    cfg = config.load_config("config.sweep.toml")
+
+    # when
+    guard = risk.RiskGuard(cfg, 0.0)
+
+    # then
+    assert guard.end_ts == risk.parse_utc("2026-10-23T20:20:00Z")
+    assert guard.flatten_at() == risk.parse_utc("2026-10-23T18:20:00Z")
+    assert guard.usdt_convert_at() == risk.parse_utc("2026-10-23T19:30:00Z")

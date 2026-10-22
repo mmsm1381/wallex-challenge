@@ -35,8 +35,11 @@ stop_before_end_s = 7200.0
 
 [challenge]
 start_equity_tmn = 5000000.0
-# Set the end of the challenge, such as "2026-11-04T20:00:00Z".
-end_utc = ""
+# End of the challenge: 2026-10-23 23:50 Tehran = 20:20 UTC.
+# With this end, the bot stops bids and sells all coins from 21:50 Tehran
+# (18:20 UTC), and sells all USDT from 23:00 Tehran (19:30 UTC), 30 minutes
+# before the USDTTMN close at 23:30 Tehran.
+end_utc = "2026-10-23T20:20:00Z"
 
 [ai]
 enabled = false
