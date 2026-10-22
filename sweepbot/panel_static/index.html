@@ -113,6 +113,7 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
   <section class="card" aria-labelledby="slots-h">
     <div class="row"><h2 id="slots-h">Slots</h2><span class="note" id="slotsNote"></span></div>
     <div class="scroll"><table style="min-width:760px"><thead><tr><th>Market</th><th>State</th><th class="r">Depth</th><th class="r">Fair value</th><th class="r">Our order</th><th class="r">Spread</th><th class="r">Age</th><th>Filter</th></tr></thead><tbody id="slots"></tbody></table></div>
+    <div id="alloc" style="display:flex;flex-direction:column;gap:6px"></div>
   </section>
   <section class="card" aria-labelledby="trades-h">
     <div class="row"><h2 id="trades-h">Closed trades today</h2><div class="sums" id="sums"></div></div>
@@ -331,8 +332,25 @@ function emptyRow(tb, cols){
   var tr = el('tr'), c = td('None yet.', '', 'color:' + C.dim); c.colSpan = cols; tr.appendChild(c); tb.appendChild(tr);
 }
 
+function renderAlloc(d){
+  var a = d.allocation, box = $('alloc'); clear(box);
+  if (!a) return;
+  var used = a.used || {}, names = {
+    no_fair_value: 'no fair value', wide_spread: 'wide spread', global_drop: 'global drop',
+    fx_shock: 'USDT jump', wallex_stale: 'Wallex feed stale', global_stale: 'no global price',
+    usdt_funding: 'USDT not bought yet', cooldown: 'cooldown'};
+  function line(label, text){
+    var r = el('p', '', ''); r.appendChild(el('span', '', label + ': ', 'color:' + C.dim)); r.appendChild(document.createTextNode(text || 'none')); box.appendChild(r);
+  }
+  line('Places', 'TMN ' + (used.TMN || []).length + ' of ' + a.tmn_slots + ' (' + ((used.TMN || []).join(', ') || 'free') + ') · USDT ' +
+    (used.USDT || []).length + ' of ' + a.usdt_slots + ' (' + ((used.USDT || []).join(', ') || 'free') + ')');
+  line('Qualifies, no funds', (a.no_funds || []).join(', '));
+  var bad = Object.keys(a.ineligible || {}).map(function(m){ return m + ' (' + (names[a.ineligible[m]] || a.ineligible[m]) + ')'; });
+  line('Not eligible now', bad.join(', '));
+}
 function renderSlots(d){
   var tb = $('slots'), k = d.kpi || {}; clear(tb);
+  renderAlloc(d);
   $('slotsNote').textContent = 'Open bids + positions ' + (k.open_slots == null ? '—' : k.open_slots) + ' of ' + (k.max_slots == null ? '—' : k.max_slots) +
     ' · orders in 10 s: ' + (k.orders_per_10s == null ? '—' : k.orders_per_10s) + ' · refused: ' + (k.budget_refused == null ? '—' : k.budget_refused);
   var list = d.slots || [];

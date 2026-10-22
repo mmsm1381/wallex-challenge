@@ -41,4 +41,5 @@ def build_twin(cfg: dict, *, market: market_mod.Market, store: store_mod.Store,
     return executor.Executor(
         cfg, market=market, broker_=paper, store=store, mode=TWIN,
         risk=risk_mod.RiskGuard(cfg, start_ts), filters=filters,
-        plan_source=lambda now: (plan, plan_id))
+        plan_source=lambda now: (plan, plan_id),
+        allocate=cfg["allocation"]["enabled"])

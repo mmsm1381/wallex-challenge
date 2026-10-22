@@ -118,6 +118,7 @@ class Runner:
             cfg, market=self.market, broker_=self.broker, store=store, mode=mode,
             risk=bot_risk, filters=self.filters, converter=converter, funder=funder,
             plan_source=plan_source,
+            allocate=cfg["allocation"]["enabled"] and supervisor is None,
             on_trade=self._on_trade if supervisor else None,
             on_hold_or_cut=self._on_hold_or_cut if supervisor else None)
         self.twin = (twin_mod.build_twin(cfg, market=self.market, store=store,
@@ -266,6 +267,7 @@ class Runner:
                     "budget_refused": bot.budget.refused},
             "slots": slots_out,
             "wallet": wallet,
+            "allocation": bot.allocation,
             "funding": bot.funder.status() if bot.funder is not None else None,
             "health": {"wallex_age_s": now - stats["wallex"]["last"] if stats["wallex"]["last"] else None,
                        "venues": [{"name": name, "age_s": now - item["last"] if item["last"] else None}

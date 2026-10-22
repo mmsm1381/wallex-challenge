@@ -1,7 +1,7 @@
 # Live settings for the challenge account.
 # The account starts with toman only. At the start the bot buys USDT for 40%
-# of the start equity (funding section), so the plan can use the two USDT
-# markets of the candle study (RESEARCH.md 3.2 and 3.4). The bot sells all
+# of the start equity (funding section), so the bot can bid on USDT markets
+# too. [plan] markets are only used when allocation is off (RESEARCH.md 3.2 and 3.4). The bot sells all
 # USDT before the last USDTTMN close. Bid size 950,000 leaves room for fees
 # and rounding: 3 toman bids need 2.85M of the 3M toman, 2 USDT bids need
 # 1.9M of the 2M toman in USDT.
@@ -48,6 +48,15 @@ start_equity_tmn = 5000000.0
 # (18:20 UTC), and sells all USDT from 23:00 Tehran (19:30 UTC), 30 minutes
 # before the USDTTMN close at 23:30 Tehran.
 end_utc = "2026-10-23T20:20:00Z"
+
+[allocation]
+# Watch all 18 markets. Keep bids on the best eligible markets of the 60-day
+# ranking (sweepbot/config.py): 3 toman places (3 x 950,000 of the 3M toman)
+# and 2 USDT places (2 x 950,000 of the 2M toman in USDT). An eligible market
+# without a place is logged as "qualifies, but no funds".
+enabled = true
+tmn_slots = 3
+usdt_slots = 2
 
 [funding]
 usdt_target_share = 0.40

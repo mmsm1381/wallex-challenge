@@ -19,7 +19,9 @@ import logging
 import statistics
 from collections.abc import Callable
 
+from sweepbot import allocation as allocation_mod
 from sweepbot import broker
+from sweepbot import config as config_mod
 from sweepbot import exits
 from sweepbot import filters as filters_mod
 from sweepbot import market as market_mod
@@ -62,7 +64,7 @@ class Executor:
                  plan_source: PlanSource,
                  on_trade: Callable[[dict], None] | None = None,
                  on_hold_or_cut: Callable[[dict], None] | None = None,
-                 converter=None, funder=None) -> None:
+                 converter=None, funder=None, allocate: bool = False) -> None:
         """Wires the parts.
 
         Args:
@@ -80,6 +82,9 @@ class Executor:
             converter: The `endgame.UsdtConverter` of the bot, or None.
             funder: The `funding.UsdtFunder` of the bot, or None. Until it
                 is done, no new bid goes to a USDT market.
+            allocate: True chooses the bid markets from all markets with
+                `allocation.allocate` instead of the plan list. The bot uses
+                it when no AI plan exists. The twin uses it too.
         """
         self.cfg = cfg
         self.market = market
@@ -108,6 +113,10 @@ class Executor:
         # Set by a person through the panel (DESIGN section 15).
         self.paused = False
         self.force_flatten = False
+        self.allocate = allocate
+        self._no_funds_logged: dict[str, float] = {}
+        # The last allocation, for the panel.
+        self.allocation: dict | None = None
         # The last view of each slot, for the panel.
         self.views: dict[str, slots.SlotView] = {}
         # The toman value of the whole wallet, set by the runner after each
@@ -159,10 +168,13 @@ class Executor:
 
     # Plan ------------------------------------------------------------------
 
-    def _wanted(self, plan: schema.Plan, halted: str | None) -> dict[str, schema.SlotPlan]:
+    def _wanted(self, plan: schema.Plan, halted: str | None,
+                now: float = 0.0) -> dict[str, schema.SlotPlan]:
         """Returns the slots that the executor may bid on now."""
         if plan.pause or halted or self.paused or self.force_flatten:
             return {}
+        if self.allocate:
+            return self._allocated(now)
         wanted = {}
         for slot_plan in plan.slots:
             if (plan.fx_risk == "high"
@@ -170,6 +182,65 @@ class Executor:
                 continue
             wanted[slot_plan.market] = slot_plan
         return wanted
+
+    def ineligible(self, market: str, now: float) -> str | None:
+        """Returns why `market` may not have a bid now, or None."""
+        if not self.market.wallex_live(now):
+            return "wallex_stale"
+        coin = market_mod.base_of(market)
+        if self.market.global_mid(coin, now) is None:
+            return "global_stale"
+        if self.market.fair_value(market, now) is None:
+            return "no_fair_value"
+        spread = self.market.spread_pct(market)
+        if spread is None or spread > self.cfg["filters"]["max_spread_pct"]:
+            return "wide_spread"
+        is_tmn = market_mod.quote_of(market) == market_mod.TMN
+        block = self.filters.blocks(market, coin, is_tmn)
+        if block:
+            return block
+        if not is_tmn and self.funder is not None and not self.funder.done:
+            return "usdt_funding"
+        slot = self.slots.get(market)
+        if slot is not None and now < slot.cooldown_until:
+            return "cooldown"
+        return None
+
+    def _allocated(self, now: float) -> dict[str, schema.SlotPlan]:
+        """Returns the markets of `allocation.allocate` as plan slots, and logs skips."""
+        alloc = self.cfg["allocation"]
+        ranking = [m for m in alloc["ranking"] if m in self.market.trade_markets]
+        reasons = {m: self.ineligible(m, now) for m in ranking}
+        busy = {}
+        for market, slot in self.slots.items():
+            if slot.busy():
+                kind = (allocation_mod.BID if slot.state in (slots.BID_PENDING, slots.BID_LIVE)
+                        else allocation_mod.HOLDING)
+                busy[market] = (kind, slot.order_ts)
+        result = allocation_mod.allocate(
+            ranking=ranking, caps={market_mod.TMN: alloc["tmn_slots"],
+                                   market_mod.USDT: alloc["usdt_slots"]},
+            ineligible=reasons, busy=busy, now=now, switch_min_s=alloc["switch_min_s"])
+        self.allocation = {"tmn_slots": alloc["tmn_slots"], "usdt_slots": alloc["usdt_slots"],
+                           "selected": result.selected, "no_funds": result.no_funds,
+                           "used": result.used,
+                           "ineligible": {m: r for m, r in reasons.items() if r}}
+        if self.mode != "twin":
+            for market in result.no_funds:
+                if now - self._no_funds_logged.get(market, -1e18) < alloc["log_every_s"]:
+                    continue
+                self._no_funds_logged[market] = now
+                quote = market_mod.quote_of(market)
+                used = ", ".join(result.used.get(quote, [])) or "none"
+                self.store.add_log(
+                    ts=now, kind="alloc",
+                    text=f"[{self.mode}] {market} qualifies, but no funds: the "
+                         f"{quote} places are used by {used}.",
+                    fields={"mode": self.mode, "market": market, "used": result.used.get(quote)})
+        size = self.cfg["plan"]["size_tmn"]
+        return {m: schema.SlotPlan(market=m, depth_pct=config_mod.default_depth(self.cfg, m),
+                                   size_tmn=size)
+                for m in result.selected}
 
     # Step ------------------------------------------------------------------
 
@@ -188,7 +259,7 @@ class Executor:
                                    fields={"mode": self.mode, "halt": halted})
             self.halt_reason = halted
         self.plan, self.plan_id = self.plan_source(now)
-        wanted = self._wanted(self.plan, halted)
+        wanted = self._wanted(self.plan, halted, now)
         open_count = sum(slot.busy() for slot in self.slots.values())
         usdt_exposure = self._usdt_exposure_tmn(now)
         flatten = self.risk.must_flatten(now) or self.force_flatten

@@ -12,6 +12,7 @@ for the feeds and the fair value, and adds its own sections:
 * `slots`: the requote rule, the order budget and the cooldowns.
 * `paper`: the latency and the fill rules of the paper broker.
 * `funding`: the USDT to buy at the start for the USDT markets.
+* `allocation`: which markets get the few bids that the funds allow.
 * `challenge`: the start equity and the end of the challenge.
 * `ai`: the model provider, the timer and the spending limit.
 
@@ -61,6 +62,17 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
               "hold_or_cut_after_s": 300.0,
               "cut_slippage_pct": 2.0},
     "paper": {"latency_s": 0.5},
+    # Allocation of the bids over all markets (DESIGN section 5.1). The
+    # ranking is the per-market result of the 60-day candle study at 1.3%
+    # with both filters (RESEARCH.md section 3.2), best first. The markets
+    # without fills in the study come last.
+    "allocation": {"enabled": False,
+                   "ranking": ["ADATMN", "BTCTMN", "ETHUSDT", "TRXTMN", "ETHTMN",
+                               "PEPEUSDT", "SHIBTMN", "ADAUSDT", "DOGEUSDT", "DOGETMN",
+                               "XRPTMN", "PEPETMN", "XRPUSDT", "SOLTMN", "BNBTMN",
+                               "BTCUSDT", "SOLUSDT", "BNBUSDT"],
+                   "tmn_slots": 3, "usdt_slots": 2, "switch_min_s": 60.0,
+                   "log_every_s": 60.0},
     # USDT to buy at the start, as a part of the start equity. 0 turns the
     # purchase off. It must not be above limits.max_usdt_share.
     "funding": {"usdt_target_share": 0.0, "slippage_pct": 0.3},
@@ -126,6 +138,14 @@ def validate(cfg: dict) -> None:
         raise ValueError("limits.safety_reserve must be zero or more")
     if not 0 <= cfg["funding"]["usdt_target_share"] <= limits["max_usdt_share"]:
         raise ValueError("funding.usdt_target_share must be in [0, limits.max_usdt_share]")
+    alloc = cfg["allocation"]
+    if alloc["tmn_slots"] < 0 or alloc["usdt_slots"] < 0:
+        raise ValueError("allocation slots must be zero or more")
+    if alloc["tmn_slots"] + alloc["usdt_slots"] > limits["max_slots"]:
+        raise ValueError("allocation.tmn_slots + usdt_slots is above limits.max_slots")
+    unknown = sorted(set(alloc["ranking"]) - set(trade_markets(cfg)))
+    if unknown:
+        raise ValueError(f"allocation.ranking has unknown markets: {unknown}")
     if cfg["ai"]["budget_usd"] < 0:
         raise ValueError("ai.budget_usd must be zero or more")
 
