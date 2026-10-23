@@ -140,7 +140,7 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
       <select id="logWho"><option value="">All</option><option value="bot">Bot</option><option value="twin">Twin</option></select>
       <input id="logQ" type="search" placeholder="Search the text, such as BTCTMN or cut" aria-label="Search the decision log">
       <label class="note" for="logPer">Rows</label>
-      <select id="logPer"><option>25</option><option>50</option><option>100</option></select>
+      <select id="logPer"><option>10</option><option>25</option><option>50</option><option>100</option></select>
     </div>
     <div id="logs"></div>
     <div class="lpager"><button type="button" id="logPrev">Newer</button><span id="logPage"></span><button type="button" id="logNext">Older</button></div>
@@ -442,7 +442,7 @@ function renderTrades(d){
   });
 }
 
-var LQ = {kind: '', who: '', q: '', page: 1, per_page: 25}, LKINDS = ['trade', 'plan', 'ai', 'alloc', 'risk', 'control', 'review'];
+var LQ = {kind: '', who: '', q: '', page: 1, per_page: 10}, LKINDS = ['trade', 'plan', 'ai', 'alloc', 'risk', 'control', 'review'];
 function logUrl(){
   var who = LQ.who === 'bot' ? ((S.data && S.data.mode) || 'live') : LQ.who;
   return '/api/logs?kind=' + encodeURIComponent(LQ.kind) + '&who=' + encodeURIComponent(who) +
