@@ -229,7 +229,6 @@ footer { padding-block: 32px; font-size: 0.85rem; color: var(--ink-3); display: 
     <div class="panel"><span class="verdict no">Dropped</span><h3>Predict the next candle</h3><p>A LightGBM model on BTC 1-minute features called the next 5-minute candle right 52.6% of the time. A sweep of 2,016 Supertrend settings on 21 coins had no edge after fees.</p></div>
     <div class="panel"><span class="verdict no">Dropped</span><h3>Wallex lags global prices</h3><p>Wallex moves only 15–35% of a Binance move in the same minute. We built a live shadow tester (lagcatcher) on 5 global exchanges. After fees, the gaps were too small to trade.</p></div>
     <div class="panel"><span class="verdict no">Dropped</span><h3>Triangle loops</h3><p>Coin/TMN against coin/USDT × USDT/TMN. The loop never beat the 0.73% taker cost.</p></div>
-    <div class="panel"><span class="verdict no">Not used</span><h3>Kronos forecast model</h3><p>An open candle foundation model, run at 640+ backtest fills. Its forecast did not tell good fills from bad ones. Its only signal was recent volatility, and a simple high-low range did better.</p></div>
     <div class="panel"><span class="verdict yes">Chosen</span><h3>Catch the sweeps</h3><p>Rest bids far below fair value and wait. Large market sells push the price down for seconds, then it comes back. This was positive after fees in a 60-day backtest.</p></div>
   </div>
 </section>

@@ -92,4 +92,4 @@ config.sweep.toml  config of the sweep bot
 
 ## Secrets
 
-The bot needs `WALLEX_API_KEY`, `WALLEX_SUB_ACCOUNT_ID` (the challenge trade-credit account) and `ANTHROPIC_API_KEY`. Put them in the environment or in a `.env` file. Git ignores `.env`. Never commit a key.
+The bot needs `WALLEX_API_KEY` (the key of the challenge account) and `ANTHROPIC_API_KEY`. Put them in the environment or in a `.env` file. Git ignores `.env`. Never commit a key.

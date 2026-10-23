@@ -61,7 +61,7 @@ Rules of the default plan markets:
 ## 4. Challenge account key (2026-10-22)
 
 * `GET /v1/account/balances` with the key of the challenge account gave TMN 5,000,000, with and without the `sub-account-client-id` header.
-* So the key alone selects the challenge account, at least for reads. The bot leaves `WALLEX_SUB_ACCOUNT_ID` empty. Set it only when Wallex rejects orders without it.
+* So the key alone selects the challenge account. The bot sends no sub-account header.
 
 ## 5. Live smoke test (task 2.4, 2026-10-22)
 

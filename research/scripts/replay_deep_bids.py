@@ -1,18 +1,19 @@
-"""Replay of all raw data with resting bids only, at the depths in BUFS.
+"""Replay of all raw data with resting bids only, at the buffers in RESTING_BUFFERS_PCT.
 
 A buffer B gives a bid at fair value x (1 - 2 x maker fee - B). The real
 depth below fair value is B + 0.5% on toman markets and B + 0.2% on USDT
 markets.
 Usage (from the repo root):
-    BUFS=0.3,0.6,0.8,1.0 PYTHONPATH=. .venv/bin/python \
+    PYTHONPATH=. .venv/bin/python \
         research/scripts/replay_deep_bids.py RAW_DIR OUT_DIR CONFIG on
 """
 import logging
 import pathlib
-import os
 import sys
 
 from lagcatcher import config, engine, replay, report
+
+RESTING_BUFFERS_PCT = [0.3, 0.6, 0.8, 1.0]
 
 raw_dir, out_dir, cfg_path, mode = sys.argv[1:5]
 logging.getLogger("lagcatcher").setLevel(logging.WARNING)
@@ -30,7 +31,7 @@ for name in ("events.jsonl", "episodes.jsonl"):
     (pathlib.Path(out_dir) / name).unlink(missing_ok=True)
 variants = replay.build_variants(cfg, buffers_pct=[],
                                  latencies_s=[0.3, 1.0],
-                                 resting_buffers_pct=[float(x) for x in os.environ["BUFS"].split(",")])
+                                 resting_buffers_pct=RESTING_BUFFERS_PCT)
 live = engine.Engine(cfg, strategies=variants)
 live.recorder.raw_enabled = False
 replay.run(live, replay.load_records(raw_dir))

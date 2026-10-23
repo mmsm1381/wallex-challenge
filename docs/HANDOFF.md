@@ -279,8 +279,6 @@ Not done, and why:
 * The user asked for a priority rule: when two markets qualify for one place, the market with more fills gets the bid.
 * `allocation.ranking` now uses the fill count per market of the 60-day study at 1.0% (RESEARCH.md section 3.7).
 * With 6 toman places, PEPETMN replaces DOGETMN. The USDT places keep the same 4 markets.
-* The user asked if Kronos (a candle forecast model) can replace the 0.3% Binance filter. Answer: no. The filter uses the Binance move in the same minute, before Wallex shows it. A model on past candles cannot see that move.
-* Kronos backtest (RESEARCH.md section 3.8): Kronos-mini at each fill of the 60-day study. Its forecast does not tell good fills from bad fills. Its only signal is the recent volatility, and a simple high-low range does better. It was not added to the bot.
 
 ## 16. End moved to Monday, and a stuck live position (2026-10-23)
 

@@ -55,21 +55,16 @@ Transport = Callable[..., Awaitable[Response]]
 class UrllibTransport:
     """Sends Wallex requests with the standard library in a worker thread."""
 
-    def __init__(self, api_key: str, sub_account_id: str | None = None,
-                 timeout_s: float = 10.0) -> None:
+    def __init__(self, api_key: str, timeout_s: float = 10.0) -> None:
         """Stores the credentials. They never go to a log.
 
         Args:
-            api_key: The Wallex API key of the trading account.
-            sub_account_id: The `clientId` of a trade-credit account, sent
-                as the `sub-account-client-id` header. None for the main
-                account.
+            api_key: The Wallex API key of the trading account. The key
+                alone selects the challenge account.
             timeout_s: The timeout of one request.
         """
         self._headers = {"x-api-key": api_key, "Content-Type": "application/json",
                          "User-Agent": UA}
-        if sub_account_id:
-            self._headers["sub-account-client-id"] = sub_account_id
         self._timeout = timeout_s
         # Bypass the dead ALL_PROXY of the developer machine (AGENTS.md).
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -171,7 +166,7 @@ class WallexBroker:
 
     @classmethod
     def from_env(cls, rules: dict[str, rules_mod.MarketRule], **kwargs) -> "WallexBroker":
-        """Builds the broker with WALLEX_API_KEY and WALLEX_SUB_ACCOUNT_ID.
+        """Builds the broker with WALLEX_API_KEY.
 
         Raises:
             RuntimeError: WALLEX_API_KEY is not set.
@@ -179,7 +174,7 @@ class WallexBroker:
         key = os.environ.get("WALLEX_API_KEY")
         if not key:
             raise RuntimeError("WALLEX_API_KEY is not set")
-        transport = UrllibTransport(key, os.environ.get("WALLEX_SUB_ACCOUNT_ID"))
+        transport = UrllibTransport(key)
         return cls(transport=transport, rules=rules, **kwargs)
 
     # Formatting ------------------------------------------------------------

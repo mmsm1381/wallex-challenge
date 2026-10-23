@@ -217,43 +217,6 @@ Limits:
 * PEPETMN has the weakest quality of the top markets (56% win, median +0.17%). More fills do not mean more profit.
 * The counts are in-sample. The study counts each market alone. It does not simulate the places.
 
-### 3.8 Kronos second opinion at each fill (2026-10-23)
-
-Question: does a forecast of the Kronos model tell good fills from bad fills? The plan was to log the forecast next to each trade as a second opinion, without a trade decision.
-
-Model: Kronos-mini (4.1M parameters, MIT license, github.com/shiyu-coder/Kronos, weights `NeoQuasar/Kronos-mini` on HuggingFace). It is a transformer, pretrained on 1m to daily candles of many exchanges.
-
-Scripts: `kronos_second_opinion.py` (forecasts), then `kronos_eval.py` (evaluation). Data: the fills of `sweep_study.py DATA_DIR 1.0 1.0` (depth 1.0%, both filters, 61 days).
-
-Rules:
-
-* Input: the last 128 1m candles before the fill minute. The forecast does not see the fill minute.
-* Two inputs: the Wallex candles of the market (with volume), or the Binance candles of the coin.
-* Output: 6 sampled paths of the next 15 minutes (the time limit of a trade).
-* Signals per fill:
-  * `f_mean`: mean forecast return at minute 15.
-  * `f_up`: share of paths that end up.
-  * `f_std`: spread of the path returns.
-  * `f_low`: mean lowest forecast price.
-* Run time: about 1 to 6 s per fill on 12 CPU cores. Kronos-small was about 7 times slower and was not run on all fills.
-
-Rank correlation of each signal with the real net result per fill (permutation p-value in brackets):
-
-| Signal | Wallex candles (640 fills) | Binance candles (655 fills) |
-|---|---|---|
-| `f_mean` (direction) | -0.04 (0.30) | +0.07 (0.07) |
-| `f_up` (direction) | -0.03 (0.45) | +0.08 (0.03) |
-| `f_std` (volatility) | +0.11 (0.01) | -0.02 (0.55) |
-| `f_low` (volatility) | -0.14 (0.00) | -0.01 (0.84) |
-
-Results:
-
-* **Direction has no useful signal.** On Wallex candles, the correlation is zero. On Binance candles, `f_up` has +0.08 (p 0.03). Its lowest third won 73% against 80% for the highest third. With 8 tests, one p-value of 0.03 is expected by chance.
-* **The volatility signals only repeat the recent volatility.** A simple statistic does better: the mean high-low range of the last 128 Wallex minutes has a rank correlation of +0.16 with the net result. After the realized volatility and range are removed, `f_std` keeps +0.04 and `f_low` keeps -0.08.
-* **As a filter, it adds nothing.** A cut on `f_up`, chosen on the first 30 days, is "no cut" for both inputs. So the last 30 days do not change (+25.3k a day on Wallex candles, +26.4k on Binance candles).
-
-Conclusion: Kronos does not tell good fills from bad fills. Do not use it for a trade decision. A logged second opinion is free of trade risk, but it carries no information. If the write-up mentions it, it must say this result.
-
 ## 4. Market facts
 
 * Wallex USDTTMN closes every night from 23:30 to 11:30 Tehran time (20:00 to 08:00 UTC). On some days it opens earlier (05:30 UTC on 2026-10-01). During the close, coin TMN markets keep trading.
