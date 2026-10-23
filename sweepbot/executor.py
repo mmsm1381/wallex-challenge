@@ -106,6 +106,9 @@ class Executor:
         self._owner: dict[str, slots.Slot] = {}
         self._slot_plan: dict[str, schema.SlotPlan] = {}
         self._fv_at_bid: dict[str, float] = {}
+        # Coins below one quantity step per coin, such as "ADA". A fee in the
+        # coin leaves them after an exit. The next exit sells them.
+        self.dust: dict[str, float] = {}
         self.realized_tmn = 0.0
         self.trades: list[dict] = []
         self.plan_id: int | None = None
@@ -352,7 +355,7 @@ class Executor:
             best_ask=book.best_ask() if book else None,
             want=slot_plan is not None, block=block, entry_block=entry_block,
             depth_pct=slot_plan.depth_pct if slot_plan else 0.0,
-            qty_for=qty_for, cut=cut)
+            qty_for=qty_for, cut=cut, dust_qty=self.dust_for(market))
 
     def _register_orders(self, slot: slots.Slot, before: set, now: float) -> bool:
         """Stores the orders that the slot sent in this step.
@@ -367,7 +370,7 @@ class Executor:
                 side, price, qty, reason = broker.BUY, slot.bid_price, slot.bid_qty, "bid"
                 new_bid = True
             else:
-                side, price, qty, reason = (broker.SELL, slot.exit_price, slot.qty,
+                side, price, qty, reason = (broker.SELL, slot.exit_price, slot.exit_qty,
                                             slot.exit_kind)
             self.store.add_order(order_id=order_id, ts=now, market=slot.market,
                                  side=side, price=price, qty=qty, status="pending",
@@ -390,10 +393,40 @@ class Executor:
                 self.store.set_order_status(event.order_id, event.kind)
             if event.kind in ("cancelled", "rejected"):
                 self._owner.pop(event.order_id, None)
+            if (event.kind == "rejected" and event.order_id == slot.exit_id
+                    and slot.exit_qty > slot.qty):
+                # The dust can be wrong. Without it, a reject loop cannot start.
+                coin = market_mod.base_of(slot.market)
+                if self.dust.pop(coin, None) is not None:
+                    log.warning("[%s] %s: exit with dust rejected, dust dropped",
+                                self.mode, slot.market)
             slot.on_event(event, fill_id)
             for closed in slot.closed:
+                self.keep_dust(closed.market, closed.leftover_qty)
                 self._book_trade(closed, now)
             slot.closed.clear()
+
+    def keep_dust(self, market: str, leftover_qty: float) -> None:
+        """Adds the rest of a closed trade to the dust of its coin.
+
+        A rest below zero means that the exit also sold dust.
+        """
+        coin = market_mod.base_of(market)
+        dust = max(0.0, self.dust.get(coin, 0.0) + leftover_qty)
+        if dust > 0:
+            self.dust[coin] = dust
+        else:
+            self.dust.pop(coin, None)
+
+    def dust_for(self, market: str) -> float:
+        """Returns the dust that the exit of `market` may sell.
+
+        Only the toman market of a coin gets it, so that two slots of one
+        coin do not sell the same dust.
+        """
+        if market_mod.quote_of(market) != market_mod.TMN:
+            return 0.0
+        return self.dust.get(market_mod.base_of(market), 0.0)
 
     def _book_trade(self, closed: slots.ClosedTrade, now: float) -> None:
         """Stores a closed trade, its log row, and updates the equity."""

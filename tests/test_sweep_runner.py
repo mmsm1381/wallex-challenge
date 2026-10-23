@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 
+from sweepbot import broker
 from sweepbot import config
 from sweepbot import runner as runner_mod
 from sweepbot import store as store_mod
@@ -190,3 +191,78 @@ def test_adopted_position_keeps_the_time_limit_of_the_buy(tmp_path) -> None:
     # then
     trades = store.rows("trades")
     assert len(trades) == 1 and trades[0]["exit_reason"] == "time"
+
+
+def test_start_keeps_coins_below_the_smallest_order_as_dust(tmp_path) -> None:
+    """Live 2026-10-23: 0.08 ADA stayed after the sale (step 0.1).
+
+    At the start, the bot keeps a free coin below the smallest order of its
+    toman market as dust. A larger balance is not the bot's to sell.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    runner = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                               start_ts=0.0, with_twin=False)
+    runner.broker.balance.update({"ADA": 0.08, "DOGE": 50.0})
+
+    # when
+    asyncio.run(runner.seed_dust())
+
+    # then
+    assert runner.bot.dust == {"ADA": pytest.approx(0.08)}
+
+
+def test_dust_goes_to_the_toman_market_and_follows_the_closed_trades(tmp_path) -> None:
+    """The rest of a closed trade adds to the dust. A sale of dust lowers it.
+
+    Only the toman market of the coin gets the dust, so two slots of one
+    coin do not sell the same dust.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    runner = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                               start_ts=0.0, with_twin=False)
+    bot = runner.bot
+
+    # when
+    bot.keep_dust("ADAUSDT", 0.08)
+    after_rest = bot.dust_for("ADATMN"), bot.dust_for("ADAUSDT")
+    bot.keep_dust("ADATMN", -0.1)
+
+    # then
+    assert after_rest == (pytest.approx(0.08), 0.0)
+    assert bot.dust_for("ADATMN") == 0.0
+
+
+def test_rejected_exit_with_dust_drops_the_dust(tmp_path) -> None:
+    """Wallex rejects an exit that asks for more coins than the wallet has.
+
+    The dust can be wrong, so the bot drops it. The next exit sells only
+    the position, and a reject loop cannot start.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["premium"]["min_samples"] = 12
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["adopt"]["positions"] = [{"market": "BTCTMN", "qty": 0.00003,
+                                  "entry_price": 21_900_000_000.0,
+                                  "entry_utc": "1970-01-01T00:00:00Z"}]
+    runner = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                               start_ts=0.0, with_twin=False)
+    runner.broker.balance["BTC"] = 0.00003
+    asyncio.run(runner.adopt_positions(0.0))
+    runner.bot.dust["BTC"] = 0.000000005
+    asyncio.run(drive(runner, sweep_records(sweep_at=10_000.0, end_s=120.0), until=100.0))
+    slot = runner.bot.slots["BTCTMN"]
+    exit_qty = slot.exit_qty
+
+    # when
+    runner.broker._events.append(broker.OrderEvent("rejected", slot.exit_id, 100.5,
+                                                    reason="HTTP 422"))
+    asyncio.run(runner.bot.step(100.5))
+
+    # then
+    assert exit_qty == pytest.approx(0.000030005)
+    assert runner.bot.dust == {}

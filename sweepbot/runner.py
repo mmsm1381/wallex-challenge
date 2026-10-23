@@ -316,6 +316,21 @@ class Runner:
             adopted.append((market, qty))
         return adopted
 
+    async def seed_dust(self) -> None:
+        """Keeps the free coins below the smallest order as dust.
+
+        A rest of an earlier run (a fee in the coin) cannot be sold alone.
+        The next exit of the coin's toman market sells it. A coin at or
+        above the smallest order quantity is not the bot's to sell.
+        """
+        free = await self.broker.balances()
+        for coin in self.market.engine.coins:
+            rule = self.bot.rules.get(f"{coin}{market_mod.TMN}", rules_mod.MarketRule())
+            qty = free.get(coin, 0.0)
+            if 0 < qty < rule.min_qty:
+                self.bot.dust[coin] = qty
+                log.info("dust %s: %.10g", coin, qty)
+
     async def refresh_balances(self, now: float) -> None:
         """Reads the wallet of the bot's broker and values it.
 
@@ -538,6 +553,7 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
         log.warning("LIVE mode: %d old orders cancelled", len(cancelled))
         for market_name, qty in await runner.adopt_positions(time.time()):
             log.warning("LIVE mode: adopted %.10g of %s", qty, market_name)
+        await runner.seed_dust()
     out_dir = pathlib.Path(cfg["bot"]["out_dir"])
     state_path, control_path = str(out_dir / "state.json"), str(out_dir / "control.json")
 

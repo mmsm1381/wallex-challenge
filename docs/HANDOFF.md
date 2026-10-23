@@ -295,3 +295,11 @@ Not done, and why:
 * An adopted position needs `entry_utc`, the time of the buy. The 15-minute limit counts from the buy, so a restart does not move it (user rule).
 * Result: the 15-minute limit sold 7.8 ADA at 59,633 at 14:29 UTC. The bot booked −3,127 toman. With the buy fee of the 7.8 ADA (about 1,170), the real result is about −4,300. 0.08 ADA stays in the wallet (below the 0.1 step). The `adopt` entry is removed.
 * Open: a restart does not keep the state of an open position by itself. Restart only when no slot is in a position, or add the position to `adopt`.
+
+## 17. Coin dust from fees in the coin (2026-10-23)
+
+* A buy fee in the coin leaves less than one quantity step after the exit. Example: 7.88025 ADA held, 7.8 sold (step 0.1), 0.08025 ADA left.
+* The executor keeps this rest per coin as dust. The next exit of the coin's toman market sells the dust with the position. Only the toman market gets it, so two slots of one coin do not sell the same dust.
+* At the start, the bot reads the wallet. A free coin below the smallest order quantity of its toman market becomes dust. A larger balance is not the bot's to sell.
+* When Wallex rejects an exit that has dust, the bot drops the dust. A reject loop cannot start.
+* The trade that sells the dust books its value. For 0.08 ADA this is about 4,800 toman.

@@ -226,6 +226,30 @@ def test_full_fill_with_fee_in_coin_goes_to_exit_without_cancel() -> None:
     assert harness.slot.qty == pytest.approx(0.9975)
 
 
+def test_exit_also_sells_the_dust_of_earlier_trades() -> None:
+    """A fee in the coin leaves less than one quantity step after a sale.
+
+    The executor gives that rest to the next exit as `dust_qty`. The exit
+    sells 1.0 + 0.5. The trade closes with a rest of -0.5: the dust is used.
+    """
+    # given
+    harness = Harness()
+    harness.live_bid()
+    harness.sweep(2.0, 980.0)
+
+    # when
+    harness.step(2.1, dust_qty=0.5)
+    harness.pump(3.0)
+    orders = asyncio.run(harness.paper.open_orders())
+    exit_qty = harness.slot.exit_qty
+    harness.buyer(4.0, 1005.0)
+
+    # then
+    assert [(o.side, o.qty) for o in orders] == [("sell", pytest.approx(1.5))]
+    assert exit_qty == pytest.approx(1.5)
+    assert harness.slot.closed[0].leftover_qty == pytest.approx(-0.5)
+
+
 def test_exit_is_requoted_when_fair_value_moves() -> None:
     """ExitLive -> ExitLive at the new fair value."""
     # given

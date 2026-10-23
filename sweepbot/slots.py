@@ -98,6 +98,8 @@ class SlotView:
         qty_for: A function of the bid price that returns the bid
             quantity, or None when the size is not known.
         cut: The reason to cut the position now, or None.
+        dust_qty: Coins of earlier trades below one quantity step. The
+            exit sells them with the position.
     """
 
     fv: float | None
@@ -109,6 +111,7 @@ class SlotView:
     depth_pct: float = 1.3
     qty_for: object = None
     cut: str | None = None
+    dust_qty: float = 0.0
 
 
 @dataclasses.dataclass
@@ -128,6 +131,8 @@ class ClosedTrade:
     exit_reason: str
     entry_fill_ids: list
     exit_fill_ids: list
+    # The coins left after the exit. Below zero: the exit also sold dust.
+    leftover_qty: float = 0.0
 
 
 class Slot:
@@ -170,6 +175,7 @@ class Slot:
         self.exit_id: str | None = None
         self.exit_price: float | None = None
         self.exit_kind: str | None = None
+        self.exit_qty = 0.0
         self.qty = 0.0
         self.bought = 0.0
         self.entry_cost = 0.0
@@ -307,12 +313,16 @@ class Slot:
                 return
             price = exits.exit_target(view.fv, self.tick)
             kind = exits.TARGET
-        self.exit_id = await broker_.place_limit(self.market, broker.SELL, price, self.qty)
+        # The broker rounds the quantity down to the step. The rest stays as
+        # dust for the next exit.
+        qty = self.qty + view.dust_qty
+        self.exit_id = await broker_.place_limit(self.market, broker.SELL, price, qty)
         self.order_ts = now
         self.exit_price = price
         self.exit_kind = kind
+        self.exit_qty = qty
         self.state = EXIT_LIVE
-        self.log.append(f"exit {kind} {price:.10g} x {self.qty:.10g}")
+        self.log.append(f"exit {kind} {price:.10g} x {qty:.10g}")
 
     async def _manage_exit(self, now: float, view: SlotView,
                            broker_: broker.Broker, budget: OrderBudget) -> None:
@@ -412,7 +422,8 @@ class Slot:
             net_quote=net, net_pct=100 * net / self.entry_cost,
             exit_reason=self.exit_kind or exits.TARGET,
             entry_fill_ids=list(self.entry_fill_ids),
-            exit_fill_ids=list(self.exit_fill_ids))
+            exit_fill_ids=list(self.exit_fill_ids),
+            leftover_qty=self.qty)
         self.closed.append(trade)
         self.cooldown_until = now + (self._loss_cooldown_s if net < 0 else self._cooldown_s)
         self._reset_trade()
