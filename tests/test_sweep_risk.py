@@ -418,3 +418,25 @@ def test_live_schedule_stops_bids_at_23_00_and_sells_usdt_at_23_20_tehran() -> N
     assert flatten_at == utc("2026-10-23T19:30:00Z")
     assert convert_at == utc("2026-10-23T19:50:00Z")
     assert guard.halted(utc("2026-10-23T19:29:59Z")) is None
+
+
+def test_live_config_bids_fit_the_funds_without_buying_usdt() -> None:
+    """The account holds about 3.0M toman and 7.35 USDT (about 2.0M toman).
+
+    The user does not want to buy more USDT. So the toman places must fit
+    in 3.0M, and the USDT places in the USDT that the account holds.
+    """
+    # given
+    cfg = config.load_config("config.live.toml")
+    size = cfg["plan"]["size_tmn"]
+    alloc = cfg["allocation"]
+
+    # when
+    tmn_needed = alloc["tmn_slots"] * size
+    usdt_needed_tmn = alloc["usdt_slots"] * size
+
+    # then
+    assert cfg["funding"]["usdt_target_share"] == 0.0
+    assert tmn_needed <= 3_000_000
+    assert usdt_needed_tmn <= 7.34 * 265_000  # USDT held, at a rate 2% below today
+    assert alloc["tmn_slots"] + alloc["usdt_slots"] <= cfg["limits"]["max_slots"]
