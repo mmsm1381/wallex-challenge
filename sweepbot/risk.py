@@ -20,7 +20,6 @@ TEHRAN_OFFSET_S = 12600  # Tehran is UTC+3:30, no daylight saving.
 _USDTTMN_OPEN_S = 8 * 3600  # USDTTMN opens at 08:00 UTC.
 _USDTTMN_CLOSE_S = 20 * 3600  # USDTTMN closes at 20:00 UTC.
 _DAY_S = 86400
-_CONVERT_BEFORE_CLOSE_S = 1800.0
 
 
 def tehran_day(ts: float) -> str:
@@ -58,6 +57,10 @@ class RiskGuard:
         self.start_ts = start_ts
         self.start_equity = float(cfg["challenge"]["start_equity_tmn"])
         self.end_ts = parse_utc(cfg["challenge"]["end_utc"])
+        # The USDT sale starts this long before the USDTTMN close, and the
+        # coins are sold this long before the USDT sale.
+        self.usdt_sell_before_close_s = float(self.limits["usdt_sell_before_close_s"])
+        self.flatten_before_usdt_s = float(self.limits["flatten_before_usdt_s"])
         self.peak = self.start_equity
         self.last_equity = self.start_equity
         self.day: str | None = None
@@ -172,14 +175,14 @@ class RiskGuard:
     def flatten_at(self) -> float | None:
         """Returns the time from which the bot stops bids and sells all coins.
 
-        It is `stop_before_end_s` before the end, and at the latest 30
-        minutes before the USDT sale. Coins of USDT markets give USDT when
+        It is `stop_before_end_s` before the end, and at the latest
+        `flatten_before_usdt_s` before the USDT sale. Coins of USDT markets give USDT when
         they are sold, so they must be sold before the USDT sale.
         """
         if self.end_ts is None:
             return None
         return min(self.end_ts - self.limits["stop_before_end_s"],
-                   self.usdt_convert_at() - _CONVERT_BEFORE_CLOSE_S)
+                   self.usdt_convert_at() - self.flatten_before_usdt_s)
 
     def must_flatten(self, now: float) -> bool:
         """Returns True from `flatten_at`: no new bids, sell all coins."""
@@ -191,7 +194,8 @@ class RiskGuard:
 
         USDTTMN is open from 08:00 to 20:00 UTC. The close is the end of the
         challenge when it falls in an open window, else the last 20:00 UTC
-        at or before the end. The result is 30 minutes before that close.
+        at or before the end. The result is `usdt_sell_before_close_s`
+        before that close.
         """
         if self.end_ts is None:
             return None
@@ -203,7 +207,7 @@ class RiskGuard:
             close = day_start + _USDTTMN_CLOSE_S
         else:
             close = day_start - _DAY_S + _USDTTMN_CLOSE_S
-        return close - _CONVERT_BEFORE_CLOSE_S
+        return close - self.usdt_sell_before_close_s
 
     @staticmethod
     def _event(now: float, kind: str, text: str) -> dict:

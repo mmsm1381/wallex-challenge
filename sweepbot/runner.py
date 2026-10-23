@@ -252,7 +252,8 @@ class Runner:
             "halted": risk.halted(now),
             "end": {"end_ts": risk.end_ts, "flatten_at": risk.flatten_at(),
                     "usdt_convert_at": close,
-                    "usdttmn_close": close + 1800.0 if close is not None else None},
+                    "usdttmn_close": (close + risk.usdt_sell_before_close_s
+                                      if close is not None else None)},
             "kpi": {"equity": equity, "start_equity": risk.start_equity, "peak": max(risk.peak, equity),
                     "drawdown_pct": 100 * (equity / max(risk.peak, equity) - 1),
                     "open_slots": sum(s.busy() for s in bot.slots.values()),

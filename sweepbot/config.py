@@ -54,6 +54,9 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
                "max_depth_pct": 2.5, "max_hold_s": 900.0,
                "daily_loss_pct": 1.5, "peak_drawdown_pct": 2.5,
                "start_drawdown_pct": 4.0, "stop_before_end_s": 7200.0,
+               # The USDT sale starts this long before the USDTTMN close, and
+               # the coins are sold this long before the USDT sale.
+               "usdt_sell_before_close_s": 1800.0, "flatten_before_usdt_s": 1800.0,
                "orders_per_10s": 15, "safety_reserve": 5},
     "filters": {"global_drop_pct": 0.3, "global_window_s": 60.0,
                 "global_wait_s": 120.0, "fx_move_pct": 0.5,

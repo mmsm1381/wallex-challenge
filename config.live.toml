@@ -43,7 +43,12 @@ max_hold_s = 900.0
 daily_loss_pct = 1.5
 peak_drawdown_pct = 2.5
 start_drawdown_pct = 4.0
-stop_before_end_s = 7200.0
+# Schedule of the last evening (Tehran = UTC+3:30, the end is 23:50 Tehran):
+# stop bids and sell coins at 23:00 Tehran (19:30 UTC), sell USDT from 23:20
+# Tehran (19:50 UTC), 10 minutes before the USDTTMN close at 23:30 Tehran.
+stop_before_end_s = 3000.0
+usdt_sell_before_close_s = 600.0
+flatten_before_usdt_s = 1200.0
 
 [challenge]
 start_equity_tmn = 5000000.0
