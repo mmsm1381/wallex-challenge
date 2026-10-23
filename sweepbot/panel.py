@@ -22,6 +22,7 @@ import os
 import pathlib
 import sqlite3
 import time
+import urllib.parse
 
 from sweepbot import risk
 
@@ -130,6 +131,55 @@ def build_payload(*, state_path: str, db_path: str, control_path: str, now: floa
     }
 
 
+# The log kinds that the bot writes (sweepbot.store logs table).
+LOG_KINDS = ("trade", "plan", "ai", "alloc", "risk", "control", "review")
+LOG_WHO = ("live", "paper", "twin")
+MAX_PER_PAGE = 200
+
+
+def query_logs(db_path: str, *, kind: str = "", who: str = "", text: str = "",
+               page: int = 1, per_page: int = 25) -> dict:
+    """Returns one page of the decision log, newest first, with filters.
+
+    Args:
+        db_path: The SQLite store.
+        kind: One of `LOG_KINDS`, or "" for all kinds.
+        who: "live", "paper" or "twin" (the "[mode]" prefix of the text), or "".
+        text: Words that the text must contain (case does not matter), or "".
+        page: The page number, from 1.
+        per_page: Rows per page, from 1 to `MAX_PER_PAGE`.
+
+    Returns:
+        {"rows", "total", "page", "pages", "per_page", "kinds"}. "kinds"
+        counts the rows per kind with the other filters.
+    """
+    per_page = min(max(int(per_page), 1), MAX_PER_PAGE)
+    where, params = [], []
+    if who in LOG_WHO:
+        where.append("text LIKE ? ESCAPE '\\'")
+        params.append(f"[{who}]%")
+    for word in text.split()[:5]:
+        escaped = word[:60].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        where.append("text LIKE ? ESCAPE '\\'")
+        params.append(f"%{escaped}%")
+    base = " AND ".join(where) or "1"
+    kinds = {row["kind"]: row["n"] for row in _rows(
+        db_path, f"SELECT kind, COUNT(*) AS n FROM logs WHERE {base} GROUP BY kind",
+        tuple(params))}
+    if kind in LOG_KINDS:
+        base += " AND kind = ?"
+        params.append(kind)
+    total = (_rows(db_path, f"SELECT COUNT(*) AS n FROM logs WHERE {base}", tuple(params))
+             or [{"n": 0}])[0]["n"]
+    pages = max(1, -(-total // per_page))
+    page = min(max(int(page), 1), pages)
+    rows = _rows(db_path, f"SELECT id, ts, kind, text FROM logs WHERE {base}"
+                          " ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?",
+                 tuple(params) + (per_page, (page - 1) * per_page))
+    return {"rows": rows, "total": total, "page": page, "pages": pages,
+            "per_page": per_page, "kinds": kinds}
+
+
 def make_handler(*, state_path: str, db_path: str, control_path: str):
     """Returns the request handler class for these files."""
 
@@ -154,6 +204,17 @@ def make_handler(*, state_path: str, db_path: str, control_path: str):
             elif self.path == "/api/state":
                 self._json(200, build_payload(state_path=state_path, db_path=db_path,
                                               control_path=control_path, now=time.time()))
+            elif self.path.startswith("/api/logs"):
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                first = lambda key, default="": (query.get(key) or [default])[0]
+                try:
+                    page, per_page = int(first("page", "1")), int(first("per_page", "25"))
+                except ValueError:
+                    self._json(400, {"error": "page and per_page must be numbers"})
+                    return
+                self._json(200, query_logs(db_path, kind=first("kind"), who=first("who"),
+                                           text=first("q")[:200], page=page,
+                                           per_page=per_page))
             else:
                 self._json(404, {"error": "not found"})
 

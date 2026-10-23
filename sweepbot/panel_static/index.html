@@ -64,6 +64,14 @@ td.r{font-family:'IBM Plex Mono',ui-monospace,monospace}
 .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500}
 .sums{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
 .sums strong{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.lfilters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.lfilters input,.lfilters select{min-height:36px;padding:0 10px;border-radius:8px;border:1px solid #4A5866;background:var(--bg);color:var(--ink);font:400 13px 'IBM Plex Sans',system-ui,sans-serif}
+.lfilters input{flex:1 1 180px;min-width:0}
+.lfilters input:focus-visible,.lfilters select:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button.kchip{min-height:32px;padding:0 10px;font-size:12px;border-radius:999px}
+button.kchip.on{background:var(--chip);border-color:var(--blue);color:var(--ink)}
+.lpager{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
+.lpager button{min-height:32px;font-size:12px;padding:0 12px}
 .log{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--row);flex-wrap:wrap}
 .log .tm{font-size:12px;color:var(--dim);flex:0 0 64px}
 .log .kd{flex:0 0 64px;font-size:11px;font-weight:600;letter-spacing:.06em}
@@ -124,7 +132,19 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
     <div class="row"><h2 id="trades-h">Closed trades (bot and twin)</h2><div class="sums" id="sums"></div></div>
     <div class="scroll"><table style="min-width:720px"><thead><tr><th>Exit (Tehran)</th><th>Who</th><th>Market</th><th class="r">Entry</th><th class="r">Exit</th><th class="r">Net</th><th class="r">Hold</th><th>Reason</th></tr></thead><tbody id="trades"></tbody></table></div>
   </section>
-  <section class="card" aria-labelledby="log-h"><h2 id="log-h">Decision log</h2><div id="logs"></div></section>
+  <section class="card" aria-labelledby="log-h">
+    <div class="row"><h2 id="log-h">Decision log</h2><span class="note" id="logNote"></span></div>
+    <div class="lfilters" id="kindChips" role="group" aria-label="Kind"></div>
+    <div class="lfilters">
+      <label class="note" for="logWho">Who</label>
+      <select id="logWho"><option value="">All</option><option value="bot">Bot</option><option value="twin">Twin</option></select>
+      <input id="logQ" type="search" placeholder="Search the text, such as BTCTMN or cut" aria-label="Search the decision log">
+      <label class="note" for="logPer">Rows</label>
+      <select id="logPer"><option>25</option><option>50</option><option>100</option></select>
+    </div>
+    <div id="logs"></div>
+    <div class="lpager"><button type="button" id="logPrev">Newer</button><span id="logPage"></span><button type="button" id="logNext">Older</button></div>
+  </section>
 </div>
 <aside>
   <section class="card" aria-labelledby="plan-h">
@@ -146,7 +166,7 @@ var CHIP = {
   cancelling:['#3A2E14','#F0B35A'], in_position:['#2E2A14','#F0D05A'], exit_live:['#14283A','#7CC4FF'],
   exit_cancelling:['#3A2E14','#F0B35A'], closed:['#1B2530','#8B99A6']
 };
-var KIND = {trade:C.green, plan:C.blue, ai:C.blue, risk:C.red, control:C.amber};
+var KIND = {trade:C.green, plan:C.blue, ai:C.blue, risk:C.red, control:C.amber, alloc:C.mute, review:C.accent};
 var S = {data:null, okAt:null, failed:false, offset:0, busy:false};
 
 function $(id){ return document.getElementById(id); }
@@ -422,14 +442,44 @@ function renderTrades(d){
   });
 }
 
+var LQ = {kind: '', who: '', q: '', page: 1, per_page: 25}, LKINDS = ['trade', 'plan', 'ai', 'alloc', 'risk', 'control', 'review'];
+function logUrl(){
+  var who = LQ.who === 'bot' ? ((S.data && S.data.mode) || 'live') : LQ.who;
+  return '/api/logs?kind=' + encodeURIComponent(LQ.kind) + '&who=' + encodeURIComponent(who) +
+    '&q=' + encodeURIComponent(LQ.q) + '&page=' + LQ.page + '&per_page=' + LQ.per_page;
+}
+function loadLogs(){
+  return fetch(logUrl(), {cache: 'no-store'}).then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(renderLogPage).catch(function(e){ $('logNote').textContent = 'Log not loaded: ' + e.message; });
+}
+function renderLogPage(res){
+  var chips = $('kindChips'); clear(chips);
+  var all = 0; Object.keys(res.kinds || {}).forEach(function(k){ all += res.kinds[k]; });
+  [''].concat(LKINDS).forEach(function(k){
+    var n = k ? (res.kinds || {})[k] || 0 : all;
+    var b = el('button', 'kchip' + (LQ.kind === k ? ' on' : ''), (k ? k.toUpperCase() : 'ALL') + ' ' + n);
+    b.type = 'button'; b.setAttribute('aria-pressed', LQ.kind === k ? 'true' : 'false');
+    if (k) b.style.color = KIND[k] || C.dim;
+    b.onclick = function(){ LQ.kind = k; LQ.page = 1; loadLogs(); };
+    chips.appendChild(b);
+  });
+  $('logNote').textContent = res.total + ' entries';
+  $('logPage').textContent = 'Page ' + res.page + ' of ' + res.pages;
+  $('logPrev').disabled = res.page <= 1; $('logNext').disabled = res.page >= res.pages;
+  LQ.page = res.page;
+  renderLogs({logs: res.rows});
+}
 function renderLogs(d){
   var box = $('logs'); clear(box);
   var list = d.logs || [];
-  if (!list.length) { box.appendChild(el('span', 'none', 'None yet.')); return; }
+  if (!list.length) { box.appendChild(el('span', 'none', 'No entries for these filters.')); return; }
   list.forEach(function(l){
     var kind = String(l.kind || '');
     var r = el('div', 'log');
     r.appendChild(el('span', 'tm mono', hms(l.ts)));
+    r.firstChild.title = dateStr(l.ts) + ' Tehran';
     r.appendChild(el('span', 'kd', kind.toUpperCase(), 'color:' + (KIND[kind] || C.dim)));
     r.appendChild(el('span', 'tx', l.text == null ? '' : String(l.text)));
     box.appendChild(r);
@@ -524,7 +574,7 @@ function render(){
   var d = S.data;
   if (d) {
     renderHeader(d); renderKpis(d); renderEndgame(d); renderSlots(d); renderTrades(d); renderWallet(d); renderTwin(d);
-    renderLogs(d); renderPlan(d); renderHold(d); renderHealth(d); renderLimits(d);
+    renderPlan(d); renderHold(d); renderHealth(d); renderLimits(d);
   }
   renderBanner();
 }
@@ -575,6 +625,18 @@ $('btnFlat').addEventListener('click', function(){
 
 load();
 setInterval(load, 2000);
+var qTimer = null;
+$('logQ').addEventListener('input', function(){
+  clearTimeout(qTimer);
+  qTimer = setTimeout(function(){ LQ.q = $('logQ').value.trim(); LQ.page = 1; loadLogs(); }, 300);
+});
+$('logWho').addEventListener('change', function(){ LQ.who = $('logWho').value; LQ.page = 1; loadLogs(); });
+$('logPer').addEventListener('change', function(){ LQ.per_page = +$('logPer').value; LQ.page = 1; loadLogs(); });
+$('logPrev').addEventListener('click', function(){ LQ.page = Math.max(1, LQ.page - 1); loadLogs(); });
+$('logNext').addEventListener('click', function(){ LQ.page += 1; loadLogs(); });
+loadLogs();
+// The newest page follows the bot. Older pages stay still while you read them.
+setInterval(function(){ if (LQ.page === 1) loadLogs(); }, 5000);
 setInterval(function(){ updateCountdown(); renderBanner(); }, 1000);
 </script>
 </body>

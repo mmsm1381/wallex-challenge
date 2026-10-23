@@ -239,3 +239,53 @@ def test_runner_state_has_the_wallet_in_toman_and_the_usdt_purchase(tmp_path) ->
     assert wallet["USDT"]["sale_tmn"] == pytest.approx(8.0 * 249_900.0 * 0.997)
     assert state["kpi"]["wallet_sale_tmn"] == pytest.approx(
         wallet["TMN"]["total"] + 8.0 * 249_900.0 * 0.997)
+
+
+def _log_store(tmp_path) -> str:
+    """Writes 30 log rows: 20 live trades, 5 twin trades, 5 plans."""
+    db_path = str(tmp_path / "logs.db")
+    store = store_mod.Store(db_path)
+    for i in range(20):
+        store.add_log(ts=1000.0 + i, kind="trade", text=f"[live] BTCTMN: trade {i}", fields={})
+    for i in range(5):
+        store.add_log(ts=1100.0 + i, kind="trade", text=f"[twin] ETHTMN: trade {i}", fields={})
+    for i in range(5):
+        store.add_log(ts=1200.0 + i, kind="plan", text=f"Plan {i}: keep 100% calm", fields={})
+    store.close()
+    return db_path
+
+
+def test_log_query_pages_newest_first(tmp_path) -> None:
+    """30 rows, 25 per page: page 1 has the 25 newest, page 2 the 5 oldest."""
+    # given
+    db_path = _log_store(tmp_path)
+
+    # when
+    first = panel.query_logs(db_path, page=1, per_page=25)
+    second = panel.query_logs(db_path, page=2, per_page=25)
+
+    # then
+    assert (first["total"], first["pages"]) == (30, 2)
+    assert first["rows"][0]["text"] == "Plan 4: keep 100% calm"
+    assert len(second["rows"]) == 5
+    assert second["rows"][-1]["text"] == "[live] BTCTMN: trade 0"
+    assert first["kinds"] == {"trade": 25, "plan": 5}
+
+
+def test_log_query_filters_by_kind_who_and_text(tmp_path) -> None:
+    """Filters combine. A percent sign in the text is a plain character."""
+    # given
+    db_path = _log_store(tmp_path)
+
+    # when
+    twin = panel.query_logs(db_path, kind="trade", who="twin")
+    words = panel.query_logs(db_path, text="btctmn TRADE 1")
+    percent = panel.query_logs(db_path, text="100%")
+    page_too_high = panel.query_logs(db_path, page=99, per_page=10)
+
+    # then
+    assert twin["total"] == 5
+    assert all(r["text"].startswith("[twin]") for r in twin["rows"])
+    assert words["total"] == 11  # trade 1 and trade 10..19
+    assert percent["total"] == 5
+    assert page_too_high["page"] == 3
