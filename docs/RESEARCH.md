@@ -137,7 +137,37 @@ Conclusions:
 * 1.0% has a smaller margin over the fees (median +0.37% against a toman round trip of 0.50%), more trades that end at the time limit, and three times the drawdown. This hurts the drawdown and stability scores.
 * Proposal, **not tested yet**: 1.3% on toman markets (round trip 0.50%) and 1.0% on USDT markets (round trip 0.20%). The supervisor can move each market between 1.0% and 1.6%. `IMPLEMENTATION_PLAN.md` task 0.5 is the backtest of this proposal.
 
-### 3.5 Limits of the evidence
+### 3.5 USDT rate from other Iranian exchanges (2026-10-23)
+
+Question: does a USDT/toman rate from other Iranian exchanges give a better fair value than the Wallex USDTTMN market alone?
+
+Data access (from Iran and from the server):
+
+* Bitpin: 1m USDT/IRT bars for 61 days (`api.bitpin.ir/v1/mkt/tv/get_bars`, no key). Used.
+* Tabdeal: no USDT chart. The answer says the central bank ordered the price charts off. Only the live book and the last trades are available.
+* Nobitex: `api.nobitex.ir` does not connect, and `apiv2.nobitex.ir` gives a Cloudflare page.
+
+Scripts: `bitpin_fetch.py`, `usdt_fv_study.py`, then `sweep_study.py` on the variant folders.
+
+Wallex USDTTMN against Bitpin, 68,363 minutes where both traded:
+
+* Basis Wallex/Bitpin: p5 -0.48%, median +0.04%, p95 +0.49%.
+* The correlation of the 1m returns is low at every lag (+0.08 at lag 0, +0.07 when Bitpin leads by 1 minute, +0.06 when Wallex leads). Neither exchange leads the other in a useful way.
+* Bitpin USDT also stops trading at night now (about half of the recent minutes have no volume), so it does not help during the nightly USDTTMN close.
+
+Sweep study on the coin markets with three USDT rates (both filters, all markets):
+
+| USDT rate | Depth 1.0%: net/day, max drawdown | Depth 1.3%: net/day, max drawdown | 5 markets, last 31 days |
+|---|---|---|---|
+| **Wallex USDTTMN (current)** | **+26.6k, -32k** | **+25.5k, -11k** | **+11.9k/day** |
+| Bitpin USDT/IRT | +21.8k, -41k | +24.3k, -17k | +10.6k/day |
+| Mean of Wallex and Bitpin | +25.3k, -43k | +24.1k, -17k | +10.1k/day |
+
+Sweep bids on the Wallex USDTTMN market itself (depths 0.2% to 1.0%, fair value from the Wallex close or from Bitpin): every variant loses. The dips of USDTTMN do not come back within 15 minutes, so most trades end at the time limit at about -0.5% (the fees).
+
+Conclusion: keep the Wallex USDTTMN rate. A rate from Bitpin, alone or in a mean, gives less profit and a larger drawdown. USDTTMN is not a market for sweep bids. Tabdeal and Nobitex can only be tested after a live recording of their books.
+
+### 3.6 Limits of the evidence
 
 * We chose the FX filter after we saw the 10-01 crash. It is partly fitted to that one event.
 * Both filters use information from the same minute as the fill. A live bot sees these moves within milliseconds, but a sweep and a shock can come in the same second.
