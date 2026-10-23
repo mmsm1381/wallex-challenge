@@ -115,8 +115,13 @@ footer{font-size:12px;color:var(--dim);text-align:center;padding-top:8px}
     <div class="scroll"><table style="min-width:760px"><thead><tr><th>Market</th><th>State</th><th class="r">Depth</th><th class="r">Fair value</th><th class="r">Our order</th><th class="r">Spread</th><th class="r">Age</th><th>Filter</th></tr></thead><tbody id="slots"></tbody></table></div>
     <div id="alloc" style="display:flex;flex-direction:column;gap:6px"></div>
   </section>
+  <section class="card" aria-labelledby="twin-h">
+    <div class="row"><h2 id="twin-h">Bot vs twin (same rules, no AI, paper)</h2><span class="note">since the start of the run</span></div>
+    <div class="scroll"><table style="min-width:520px"><thead><tr><th>Who</th><th class="r">Trades</th><th class="r">Wins</th><th class="r">Net toman</th><th class="r">Today</th></tr></thead><tbody id="twin"></tbody></table></div>
+    <div id="twinSlots" style="display:flex;flex-direction:column;gap:6px"></div>
+  </section>
   <section class="card" aria-labelledby="trades-h">
-    <div class="row"><h2 id="trades-h">Closed trades today</h2><div class="sums" id="sums"></div></div>
+    <div class="row"><h2 id="trades-h">Closed trades (bot and twin)</h2><div class="sums" id="sums"></div></div>
     <div class="scroll"><table style="min-width:720px"><thead><tr><th>Exit (Tehran)</th><th>Who</th><th>Market</th><th class="r">Entry</th><th class="r">Exit</th><th class="r">Net</th><th class="r">Hold</th><th>Reason</th></tr></thead><tbody id="trades"></tbody></table></div>
   </section>
   <section class="card" aria-labelledby="log-h"><h2 id="log-h">Decision log</h2><div id="logs"></div></section>
@@ -370,6 +375,26 @@ function renderSlots(d){
   });
 }
 
+function renderTwin(d){
+  var tb = $('twin'), t = d.totals || {}, k = d.kpi || {}, box = $('twinSlots'); clear(tb); clear(box);
+  [['Bot (live, AI)', t.bot, k.net_today_bot], ['Twin (no AI)', t.twin, k.net_today_twin]].forEach(function(row){
+    var r = el('tr'), v = row[1] || {}, neg = isNum(v.net_tmn) && v.net_tmn < 0;
+    r.appendChild(td(row[0], '', 'font-weight:600'));
+    r.appendChild(td(v.trades == null ? '—' : String(v.trades), 'r'));
+    r.appendChild(td(v.wins == null ? '—' : String(v.wins), 'r'));
+    r.appendChild(td(smoney(v.net_tmn), 'r', 'color:' + (neg ? C.red : C.green)));
+    r.appendChild(td(smoney(row[2]), 'r', 'color:' + C.mute));
+    tb.appendChild(r);
+  });
+  var tw = d.twin;
+  if (tw && tw.slots) {
+    var p = el('p', '', ''); p.appendChild(el('span', '', 'Twin bids now: ', 'color:' + C.dim));
+    p.appendChild(document.createTextNode(tw.slots.map(function(s){
+      return s.market + ' (' + s.state.replace('_', ' ') + (isNum(s.order_price) ? ' ' + price(s.order_price) : '') + ')';
+    }).join(', ') || 'none'));
+    box.appendChild(p);
+  }
+}
 function renderTrades(d){
   var tb = $('trades'), k = d.kpi || {}, sums = $('sums'); clear(tb); clear(sums);
   var bot = k.net_today_bot, twin = k.net_today_twin;
@@ -498,7 +523,7 @@ function renderBanner(){
 function render(){
   var d = S.data;
   if (d) {
-    renderHeader(d); renderKpis(d); renderEndgame(d); renderSlots(d); renderTrades(d); renderWallet(d);
+    renderHeader(d); renderKpis(d); renderEndgame(d); renderSlots(d); renderTrades(d); renderWallet(d); renderTwin(d);
     renderLogs(d); renderPlan(d); renderHold(d); renderHealth(d); renderLimits(d);
   }
   renderBanner();

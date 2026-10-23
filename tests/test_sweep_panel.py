@@ -67,7 +67,11 @@ def test_payload_without_bot_files_is_stale_and_empty(tmp_path) -> None:
 
 
 def test_payload_has_todays_trades_and_nets_per_bot(tmp_path) -> None:
-    """Today's trades of the bot and the twin. Yesterday's trade is not counted."""
+    """Today's nets per bot leave yesterday out. The list and the totals keep it.
+
+    The challenge is short, so the panel lists all trades of the run and
+    shows the bot and the twin totals since the start.
+    """
     # given
     db_path = str(tmp_path / "bot.db")
     store = store_mod.Store(db_path)
@@ -87,7 +91,9 @@ def test_payload_has_todays_trades_and_nets_per_bot(tmp_path) -> None:
 
     # then
     assert payload["stale"] is False
-    assert [t["mode"] for t in payload["trades"]] == ["twin", "live"]
+    assert [t["mode"] for t in payload["trades"]] == ["twin", "live", "live"]
+    assert payload["totals"]["bot"] == {"trades": 2, "wins": 2, "net_tmn": 107999.0}
+    assert payload["totals"]["twin"] == {"trades": 1, "wins": 1, "net_tmn": 5000.0}
     kpi = payload["kpi"]
     assert (kpi["net_today_bot"], kpi["net_today_twin"], kpi["trades_today"]) == (8000.0, 5000.0, 1)
     assert kpi["equity"] == 5_008_000.0

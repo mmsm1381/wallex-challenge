@@ -269,6 +269,7 @@ class Runner:
             "slots": slots_out,
             "wallet": wallet,
             "allocation": bot.allocation,
+            "twin": self._twin_state(now),
             "funding": bot.funder.status() if bot.funder is not None else None,
             "health": {"wallex_age_s": now - stats["wallex"]["last"] if stats["wallex"]["last"] else None,
                        "venues": [{"name": name, "age_s": now - item["last"] if item["last"] else None}
@@ -363,6 +364,18 @@ class Runner:
         return {"ts": self.balances_ts, "assets": assets, "total_tmn": total,
                 "usdt_tmn": usdt_tmn, "sale_tmn": sale_total,
                 "usdt_bid": self._best_bid("USDTTMN")}
+
+    def _twin_state(self, now: float) -> dict | None:
+        """Returns the no-AI twin for the panel: equity, trades and its slots."""
+        twin = self.twin
+        if twin is None:
+            return None
+        return {"equity": twin.equity(now), "realized_tmn": twin.realized_tmn,
+                "trades": len(twin.trades),
+                "used": (twin.allocation or {}).get("used"),
+                "slots": [{"market": market, "state": slot.state,
+                           "order_price": slot.exit_price if slot.exit_id else slot.bid_price}
+                          for market, slot in sorted(twin.slots.items())]}
 
     def write_state(self, path: str, now: float) -> None:
         """Writes `live_state` to `path` in one step, so a reader never sees half a file."""

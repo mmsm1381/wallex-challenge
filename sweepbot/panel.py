@@ -88,15 +88,24 @@ def build_payload(*, state_path: str, db_path: str, control_path: str, now: floa
     state_age = now - state["ts"] if "ts" in state else None
     mode = state.get("mode")
     day_start = now - (now + risk.TEHRAN_OFFSET_S) % 86400.0
-    trades = _rows(db_path, "SELECT ts, mode, market, entry_price, exit_price, net_pct, net_tmn,"
-                            " hold_s, exit_reason FROM trades WHERE ts >= ?"
-                            " ORDER BY ts DESC LIMIT ?", (day_start, TRADE_ROWS))
+    # All trades of the run (the challenge is short), newest first.
+    all_trades = _rows(db_path, "SELECT ts, mode, market, entry_price, exit_price, net_pct,"
+                                " net_tmn, hold_s, exit_reason FROM trades ORDER BY ts DESC")
+    trades = all_trades[:TRADE_ROWS]
+    today = [t for t in all_trades if t["ts"] >= day_start]
     logs = _rows(db_path, "SELECT ts, kind, text FROM logs ORDER BY ts DESC, id DESC LIMIT ?",
                  (LOG_ROWS,))
     ai = _rows(db_path, "SELECT COUNT(*) AS calls, COALESCE(SUM(cost_usd), 0) AS cost"
                         " FROM ai_calls")
-    bot_trades = [t for t in trades if t["mode"] != "twin"]
-    twin_trades = [t for t in trades if t["mode"] == "twin"]
+    bot_trades = [t for t in today if t["mode"] != "twin"]
+    twin_trades = [t for t in today if t["mode"] == "twin"]
+
+    def total(rows: list[dict]) -> dict:
+        return {"trades": len(rows),
+                "wins": sum(1 for t in rows if (t["net_tmn"] or 0.0) > 0),
+                "net_tmn": sum(t["net_tmn"] or 0.0 for t in rows)}
+    totals = {"bot": total([t for t in all_trades if t["mode"] != "twin"]),
+              "twin": total([t for t in all_trades if t["mode"] == "twin"])}
     kpi = dict(state.get("kpi") or {})
     kpi.update({
         "net_today_bot": sum(t["net_tmn"] or 0.0 for t in bot_trades),
@@ -114,7 +123,8 @@ def build_payload(*, state_path: str, db_path: str, control_path: str, now: floa
         "halted": state.get("halted"), "end": state.get("end") or {},
         "kpi": kpi, "slots": state.get("slots") or [], "health": state.get("health") or {},
         "wallet": state.get("wallet"), "funding": state.get("funding"),
-        "allocation": state.get("allocation"),
+        "allocation": state.get("allocation"), "twin": state.get("twin"),
+        "totals": totals,
         "plan": state.get("plan"), "ai": state.get("ai") or {"enabled": False},
         "trades": trades, "logs": logs, "limits": state.get("limits") or {},
     }
