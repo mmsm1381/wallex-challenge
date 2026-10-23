@@ -147,3 +147,20 @@ def test_all_models_failing_raises_one_error_with_each_reason(monkeypatch) -> No
     # when / then
     with pytest.raises(provider.ProviderError, match="cx/main: HTTP 429"):
         adapter.propose_plan({})
+
+
+def test_prompt_says_the_nightly_usdttmn_close_is_not_an_fx_risk() -> None:
+    """On 2026-10-22 the model set fx_risk "high" all night for the closed market.
+
+    Expected: both providers tell the model that the close is normal.
+    """
+    # given
+    from sweepbot.ai import claude
+
+    # when
+    prompts = (openai_compat.SYSTEM_PROMPT, claude.SYSTEM_PROMPT)
+
+    # then
+    for prompt in prompts:
+        assert "closes every night" in prompt
+        assert "NOT a reason for\n  fx_risk \"high\"" in prompt

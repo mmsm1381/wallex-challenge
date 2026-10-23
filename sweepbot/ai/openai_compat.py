@@ -54,6 +54,17 @@ What your plan controls:
   its bid below fair value. Markets not in the list use the default depth
   (1.3% on toman markets, 1.0% on USDT markets). size_tmn is 950000.
 
+USDT rate and fx_risk:
+- Wallex USDTTMN closes every night from 20:00 to 08:00 UTC (23:30 to 11:30
+  Tehran), and on some days it opens earlier. While it is closed,
+  usdttmn_frozen is true and usdt_rate_source is "implied": the bot then uses
+  the USDT rate of the coin markets. This is normal. It is NOT a reason for
+  fx_risk "high".
+- The bot has its own fast USDT shock filter: it stops toman bids within a
+  second when the USDT rate moves 0.5% in 5 minutes. Set fx_risk "high" only
+  for a real toman or USDT shock that this filter does not cover, such as
+  clear news. Do not switch fx_risk back and forth without a new reason.
+
 Hard limits. A validator enforces them and cuts any value outside them:
 - Bid depth below fair value: 1.0% to 2.5%.
 - At most 5 slots. At most 1,000,000 toman per bid.
