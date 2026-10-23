@@ -106,7 +106,6 @@ class _Tracked:
     price: float
     qty: float
     live_sent: bool = False
-    fills_seen: int = 0
     filled: float = 0.0
     cancel_requested: bool = False
     done: bool = False
@@ -225,6 +224,10 @@ class WallexBroker:
         """Asks Wallex to cancel an order. A failure is retried at each poll."""
         tracked = self._orders.get(order_id)
         if tracked is None or tracked.done:
+            # The order is finished (the broker forgets finished orders). The
+            # slot must not wait for a cancel.
+            self._events.append(broker.OrderEvent("cancelled", order_id, self._clock(),
+                                                  reason="already finished"))
             return
         tracked.cancel_requested = True
         await self._send_cancel(order_id)
@@ -335,9 +338,18 @@ class WallexBroker:
             tracked.live_sent = True
             self._events.append(broker.OrderEvent("live", client_id, now))
         fills = order.get("fills") or []
-        for fill in fills[tracked.fills_seen:]:
-            self._fill(client_id, tracked, fill, now)
-        tracked.fills_seen = max(tracked.fills_seen, len(fills))
+        # Report only the part of the fill list above the quantity already
+        # reported. An earlier answer without a fill list can have reported
+        # a part from executedQty.
+        listed = 0.0
+        for fill in fills:
+            qty = _num(fill.get("quantity"))
+            start, listed = listed, listed + qty
+            if qty <= 0 or listed <= tracked.filled * (1 + 1e-9) + 1e-12:
+                continue
+            part = listed - max(start, tracked.filled)
+            self._fill(client_id, tracked, {**fill, "quantity": part,
+                                            "fee": _num(fill.get("fee")) * part / qty}, now)
         executed = _num(order.get("executedQty"))
         if executed > tracked.filled * (1 + 1e-9) + 1e-12 and not fills:
             # No fill list in this answer: report the new part at the mean price.
@@ -346,7 +358,13 @@ class WallexBroker:
                 "quantity": executed - tracked.filled, "fee": 0}, now)
         if state in FINISHED:
             tracked.done = True
-            if state in CANCELLED_STATES:
+            orig = _num(order.get("origQty"), tracked.qty)
+            if state == "FILLED" and executed < orig * (1 - 1e-9):
+                # Wallex can end an order as FILLED with a part executed. The
+                # rest is gone, as after a cancel.
+                self._events.append(broker.OrderEvent("cancelled", client_id, now,
+                                                      reason="filled in part"))
+            elif state in CANCELLED_STATES:
                 self._events.append(broker.OrderEvent("cancelled", client_id, now))
             elif state == "REJECTED":
                 self._events.append(broker.OrderEvent("rejected", client_id, now,

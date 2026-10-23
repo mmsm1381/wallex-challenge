@@ -301,3 +301,13 @@ Not done, and why:
 * At the start, the bot reads the wallet. A free coin below the smallest order quantity of its toman market becomes dust. A larger balance is not the bot's to sell.
 * When Wallex rejects an exit that has dust, the bot drops the dust. A reject loop cannot start.
 * The trade that sells the dust books its value. For 0.08 ADA this is about 4,800 toman.
+
+## 18. Second stuck position: part fill with status FILLED (2026-10-23)
+
+* 15:25 UTC: an ADATMN bid of 8.1 ADA at 58,508 executed 1.8 ADA. Wallex then gave the order the status FILLED, with executedQty 1.8 of 8.1.
+* Bug 1: the open list first gave executedQty 1.8 without a fill list. The final read gave the same 1.8 as a fill. The broker reported both, so the bot booked 3.6 ADA. The wallet had 1.7955 ADA (fee 0.0045 ADA).
+* Bug 2: the slot saw a part fill and asked to cancel the rest. The order was finished, so the cancel gave no event. The slot waited, and sent no exit for more than 1 hour. The AI said "cut" at 15:30, but the slot could not act.
+* Fix 1: the broker reports only the part of the fill list above the quantity that it already reported.
+* Fix 2: an order that ends as FILLED with a part executed gives a cancelled event after the fill.
+* Fix 3: a cancel of a finished or unknown order gives a cancelled event at once.
+* The position was adopted at the restart with all free ADA (1.87575, with the dust). Its time limit was over, so the bot sold it at once.

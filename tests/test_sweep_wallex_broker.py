@@ -227,6 +227,80 @@ def test_order_that_left_the_open_list_is_read_for_its_final_state() -> None:
     assert later == []
 
 
+def test_filled_status_with_a_part_executed_ends_the_rest() -> None:
+    """Live 2026-10-23 15:25: ADATMN 8.1 ordered, 1.8 executed, status FILLED.
+
+    The rest of the order is gone. The broker reports the fill and then a
+    cancelled event, so the slot does not wait for its own cancel.
+    """
+    # given
+    wallex, transport, clock, _ = make()
+    transport.add("POST", "/v1/account/orders", (201, {"success": True, "result": order("x")}))
+    client_id = place(wallex)
+    run(wallex.poll())
+    transport.add("GET", "/v1/account/openOrders", (200, {"success": True, "result": {"orders": []}}))
+    done = order(client_id, "FILLED", fills=[fill("0.00002")], executed="0.00002")
+    transport.add("GET", f"/v1/account/orders/{client_id}", (200, {"success": True, "result": done}))
+
+    # when
+    clock.now += 1.0
+    events = run(wallex.poll())
+
+    # then
+    assert [(e.kind, e.qty) for e in events] == [("fill", 0.00002), ("cancelled", 0.0)]
+
+
+def test_fill_seen_first_without_fill_list_is_not_counted_twice() -> None:
+    """Live 2026-10-23 15:25: the open list gave executedQty 1.8 without a
+    fill list. The final read gave the same 1.8 as a fill. The bot booked
+    3.6 ADA, and the wallet had 1.8.
+    """
+    # given
+    wallex, transport, clock, _ = make()
+    transport.add("POST", "/v1/account/orders", (201, {"success": True, "result": order("x")}))
+    client_id = place(wallex)
+    run(wallex.poll())
+    part = order(client_id, fills=[], executed="0.00002")
+    transport.add("GET", "/v1/account/openOrders",
+                  (200, {"success": True, "result": {"orders": [part]}}),
+                  (200, {"success": True, "result": {"orders": []}}))
+    done = order(client_id, "CANCELED", fills=[fill("0.00002")], executed="0.00002")
+    transport.add("GET", f"/v1/account/orders/{client_id}", (200, {"success": True, "result": done}))
+
+    # when
+    clock.now += 1.0
+    first = run(wallex.poll())
+    clock.now += 1.0
+    second = run(wallex.poll())
+
+    # then
+    filled = sum(e.qty for e in first + second if e.kind == "fill")
+    assert filled == pytest.approx(0.00002)
+    assert [e.kind for e in second] == ["cancelled"]
+
+
+def test_cancel_of_a_finished_order_gives_cancelled_event() -> None:
+    """A slot that asks to cancel a finished order must not wait forever."""
+    # given
+    wallex, transport, clock, _ = make()
+    transport.add("POST", "/v1/account/orders", (201, {"success": True, "result": order("x")}))
+    client_id = place(wallex)
+    run(wallex.poll())
+    transport.add("GET", "/v1/account/openOrders", (200, {"success": True, "result": {"orders": []}}))
+    done = order(client_id, "FILLED", fills=[fill("0.00004606")], executed="0.00004606")
+    transport.add("GET", f"/v1/account/orders/{client_id}", (200, {"success": True, "result": done}))
+    clock.now += 1.0
+    run(wallex.poll())
+
+    # when
+    run(wallex.cancel(client_id))
+    clock.now += 1.0
+    events = run(wallex.poll())
+
+    # then
+    assert [e.kind for e in events] == ["cancelled"]
+
+
 def test_fee_in_base_coin_lowers_the_quantity() -> None:
     """A buy fee of 0.0000001 BTC: the bot holds 0.0000199 BTC, the fee is in toman."""
     # given
