@@ -88,8 +88,11 @@ class OrderEvent:
         order_id: The broker order id.
         ts: The time of the change.
         price: The fill price (fills only).
-        qty: The fill quantity (fills only).
+        qty: The fill quantity (fills only). A fee in the base coin is
+            already taken from it.
         fee: The fee in the quote currency (fills only).
+        fee_qty: The fee in the base coin that is taken from `qty` (fills
+            only). The order filled `qty + fee_qty`.
         maker: True when the fill was a maker fill.
         reason: A short reason (rejects only).
     """
@@ -100,6 +103,7 @@ class OrderEvent:
     price: float = 0.0
     qty: float = 0.0
     fee: float = 0.0
+    fee_qty: float = 0.0
     maker: bool = False
     reason: str = ""
 

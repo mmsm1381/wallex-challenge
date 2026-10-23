@@ -246,6 +246,7 @@ def test_fee_in_base_coin_lowers_the_quantity() -> None:
     assert event.qty == pytest.approx(0.0000199)
     assert event.fee == pytest.approx(2000.0)
     assert event.price * event.qty + event.fee == pytest.approx(20_000_000_000 * 0.00002)
+    assert event.fee_qty == pytest.approx(0.0000001)
 
 
 def test_cancel_answer_canceled_gives_cancelled_event() -> None:

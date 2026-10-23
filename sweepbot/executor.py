@@ -427,11 +427,32 @@ class Executor:
 
     # Hold or cut -----------------------------------------------------------
 
+    def adopt(self, market: str, qty: float, entry_price: float, entry_ts: float,
+              now: float, entry_fee: float = 0.0) -> None:
+        """Takes over a position that a restart lost (config section `adopt`).
+
+        The time limit counts from `entry_ts`, the time of the buy.
+        """
+        slot = self.slots.get(market)
+        if slot is None:
+            rule = self.rules.get(market, rules_mod.MarketRule())
+            slot = self.slots[market] = slots.Slot(market, self.cfg, rule.price_tick,
+                                                   rule.min_qty)
+        slot.adopt(qty, entry_price, entry_ts, entry_fee)
+        self.store.add_log(ts=now, kind="risk",
+                           text=f"[{self.mode}] {market}: adopted {qty:.10g} at {entry_price:.10g}",
+                           fields={"mode": self.mode, "market": market, "qty": qty,
+                                   "entry_price": entry_price, "kind": "adopt"})
+
     def _maybe_ask_hold_or_cut(self, market: str, slot: slots.Slot, now: float) -> None:
-        """Asks once per position when it has no exit fill after the wait."""
+        """Asks once per position when it has no exit fill after the wait.
+
+        For an adopted position, the bot asks at once.
+        """
         if (self.on_hold_or_cut is None or not slot.has_position()
                 or slot.hold_or_cut_asked or slot.entry_ts is None
-                or now - slot.entry_ts < self.cfg["slots"]["hold_or_cut_after_s"]):
+                or (not slot.adopted
+                    and now - slot.entry_ts < self.cfg["slots"]["hold_or_cut_after_s"])):
             return
         slot.hold_or_cut_asked = True
         book = self.market.book(market)
@@ -447,6 +468,7 @@ class Executor:
             "best_ask": book.best_ask() if book else None,
             "usdt_rate": rate, "usdt_rate_source": source,
             "time_limit_s": self.cfg["limits"]["max_hold_s"],
+            "adopted": slot.adopted,
         })
 
     def apply_hold_or_cut(self, market: str, decision: str, reason: str, now: float) -> None:

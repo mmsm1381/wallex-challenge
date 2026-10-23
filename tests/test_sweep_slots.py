@@ -202,6 +202,30 @@ def test_part_fill_cancels_the_rest_and_exits_the_filled_coins() -> None:
     assert [(o.side, o.qty) for o in orders] == [("sell", pytest.approx(0.4))]
 
 
+def test_full_fill_with_fee_in_coin_goes_to_exit_without_cancel() -> None:
+    """Live 2026-10-23: ADATMN filled 7.9, the fee was 0.01975 ADA.
+
+    The fill event carries 7.88025 ADA. The bid is filled in full, so the
+    slot must send the exit at once. A cancel of a filled order gives no
+    event, so a wait for it would keep the slot in IN_POSITION.
+    """
+    # given
+    harness = Harness()
+    harness.live_bid()
+    bid_id = harness.slot.bid_id
+    event = broker.OrderEvent("fill", bid_id, 2.0, price=987.0, qty=0.9975,
+                              fee=0.0, fee_qty=0.0025)
+
+    # when
+    harness.slot.on_event(event, 1)
+    harness.step(2.1)
+
+    # then
+    assert harness.slot.bid_id is None
+    assert harness.slot.state == slots.EXIT_LIVE
+    assert harness.slot.qty == pytest.approx(0.9975)
+
+
 def test_exit_is_requoted_when_fair_value_moves() -> None:
     """ExitLive -> ExitLive at the new fair value."""
     # given

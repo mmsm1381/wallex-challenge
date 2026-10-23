@@ -182,6 +182,7 @@ class Slot:
         self.exit_fill_ids: list = []
         self.hold_or_cut_asked = False
         self.cut_requested = False
+        self.adopted = False
 
     # Queries ---------------------------------------------------------------
 
@@ -200,6 +201,29 @@ class Slot:
     def busy(self) -> bool:
         """Returns True when the slot has an order or a position."""
         return self.state not in (IDLE, CLOSED)
+
+    def adopt(self, qty: float, entry_price: float, entry_ts: float,
+              entry_fee: float = 0.0) -> None:
+        """Takes over coins that a restart lost, as an open position.
+
+        The next step sends the exit.
+
+        Args:
+            qty: The coins to sell.
+            entry_price: The buy price.
+            entry_ts: The time of the buy. The time limit counts from it, so
+                a restart does not move the limit.
+            entry_fee: The buy fee of `qty` in the quote currency.
+        """
+        self._reset_trade()
+        self.qty = qty
+        self.bought = qty
+        self.entry_cost = entry_price * qty
+        self.entry_fees = entry_fee
+        self.entry_ts = entry_ts
+        self.adopted = True
+        self.state = IN_POSITION
+        self.log.append(f"adopt {entry_price:.10g} x {qty:.10g}")
 
     # Tick ------------------------------------------------------------------
 
@@ -333,7 +357,8 @@ class Slot:
                 self.entry_ts = event.ts
             self.qty += event.qty
             self.bought += event.qty
-            self.bid_filled += event.qty
+            # The order filled the coins held plus a fee in the coin.
+            self.bid_filled += event.qty + event.fee_qty
             self.entry_cost += event.price * event.qty
             self.entry_fees += event.fee
             self.entry_fill_ids.append(fill_id)

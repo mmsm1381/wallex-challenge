@@ -283,6 +283,39 @@ class Runner:
             "limits": self.cfg["limits"],
         }
 
+    async def adopt_positions(self, now: float) -> list[tuple[str, float]]:
+        """Takes over the positions of the config section `adopt`.
+
+        The bot adopts at most the free coins of the wallet, rounded down to
+        the quantity step. A position below the smallest order is skipped.
+        The optional `entry_fee` is the buy fee of the config quantity in the
+        quote currency. The bot books the part of the adopted quantity.
+        The time limit counts from `entry_utc`, the time of the buy, so a
+        restart does not move it.
+
+        Returns:
+            The adopted (market, quantity) pairs.
+        """
+        positions = self.cfg["adopt"]["positions"]
+        if not positions:
+            return []
+        free = await self.broker.balances()
+        adopted = []
+        for position in positions:
+            market = position["market"]
+            coin = market_mod.base_of(market)
+            rule = self.bot.rules.get(market, rules_mod.MarketRule())
+            qty = rule.round_qty(min(float(position["qty"]), free.get(coin, 0.0)))
+            price = float(position["entry_price"])
+            if qty <= 0 or qty < rule.min_qty or qty * price < rule.min_notional:
+                log.info("adopt %s skipped: %.10g %s free", market, free.get(coin, 0.0), coin)
+                continue
+            fee = float(position.get("entry_fee", 0.0)) * qty / float(position["qty"])
+            entry_ts = risk_mod.parse_utc(position["entry_utc"])
+            self.bot.adopt(market, qty, price, entry_ts, now, fee)
+            adopted.append((market, qty))
+        return adopted
+
     async def refresh_balances(self, now: float) -> None:
         """Reads the wallet of the bot's broker and values it.
 
@@ -503,6 +536,8 @@ async def run_live(runner: Runner, duration_s: float | None = None) -> None:
     if runner.mode == "live":
         cancelled = await runner.broker.cancel_unknown(market.trade_markets)
         log.warning("LIVE mode: %d old orders cancelled", len(cancelled))
+        for market_name, qty in await runner.adopt_positions(time.time()):
+            log.warning("LIVE mode: adopted %.10g of %s", qty, market_name)
     out_dir = pathlib.Path(cfg["bot"]["out_dir"])
     state_path, control_path = str(out_dir / "state.json"), str(out_dir / "control.json")
 

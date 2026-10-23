@@ -369,8 +369,10 @@ class WallexBroker:
         fee = _num(fill.get("fee"))
         fee_asset = str(fill.get("feeAsset") or quote).upper()
         net_qty = qty
+        fee_qty = 0.0
         if fee_asset == base:
             net_qty = qty - fee
+            fee_qty = fee
             fee_quote = fee * price
         else:
             fee_quote = fee
@@ -379,7 +381,8 @@ class WallexBroker:
             maker = abs(_num(fill["feeCoefficient"]) - _num(fill["makerFeeCoefficient"])) < 1e-12
         # The slot books cost = price x net qty + fee, which is price x qty.
         self._events.append(broker.OrderEvent("fill", client_id, now, price=price,
-                                              qty=net_qty, fee=fee_quote, maker=maker))
+                                              qty=net_qty, fee=fee_quote, fee_qty=fee_qty,
+                                              maker=maker))
 
     def _reject(self, client_id: str, reason: str) -> None:
         """Adds a rejected event and forgets the order."""

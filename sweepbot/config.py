@@ -15,6 +15,8 @@ for the feeds and the fair value, and adds its own sections:
 * `allocation`: which markets get the few bids that the funds allow.
 * `challenge`: the start equity and the end of the challenge.
 * `ai`: the model provider, the timer and the spending limit.
+* `adopt`: positions that a restart lost. The live bot takes them over at
+  the start.
 
 The numbers come from `docs/RESEARCH.md` section 3. Do not change them
 without a new backtest.
@@ -109,6 +111,12 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
            "base_url": "", "api_key_env": "AI_API_KEY", "json_mode": True,
            "fallback_models": [], "request_timeout_s": 30.0,
            "max_tokens": 4000, "price_in_per_mtok": 0.0, "price_out_per_mtok": 0.0},
+    # Positions to take over at the start: a list of {"market", "qty",
+    # "entry_price", "entry_utc", "entry_fee"}. "entry_utc" is the time of
+    # the buy. The time limit counts from it, so a restart does not move it.
+    # The entry fee (optional) is in the quote currency. The bot adopts at most the free coins of the wallet, so
+    # sold coins are not adopted again.
+    "adopt": {"positions": []},
 })
 
 
@@ -172,6 +180,15 @@ def validate(cfg: dict) -> None:
     unknown = sorted(set(alloc["ranking"]) - set(trade_markets(cfg)))
     if unknown:
         raise ValueError(f"allocation.ranking has unknown markets: {unknown}")
+    for position in cfg["adopt"]["positions"]:
+        if position.get("market") not in trade_markets(cfg):
+            raise ValueError(f"adopt.positions has an unknown market: {position.get('market')!r}")
+        if position.get("qty", 0) <= 0 or position.get("entry_price", 0) <= 0:
+            raise ValueError("adopt.positions needs a positive qty and entry_price")
+        if not str(position.get("entry_utc", "")).endswith("Z"):
+            raise ValueError("adopt.positions needs entry_utc, such as \"2026-10-23T14:01:02Z\"")
+        if position.get("entry_fee", 0) < 0:
+            raise ValueError("adopt.positions needs an entry_fee of zero or more")
     if cfg["ai"]["budget_usd"] < 0:
         raise ValueError("ai.budget_usd must be zero or more")
 

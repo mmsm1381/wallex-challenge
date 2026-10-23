@@ -400,7 +400,7 @@ def test_usdt_convert_at_for_end_in_the_open_window() -> None:
 
 
 def test_live_schedule_stops_bids_at_23_00_and_sells_usdt_at_23_20_tehran() -> None:
-    """The live config of the last evening (end 23:50 Tehran = 20:20 UTC).
+    """The live config of the last evening (Monday 2026-10-26, end 23:50 Tehran).
 
     Expected: coins are sold and bids stop at 19:30 UTC (23:00 Tehran). The
     USDT sale starts at 19:50 UTC (23:20 Tehran), 10 minutes before the
@@ -415,9 +415,9 @@ def test_live_schedule_stops_bids_at_23_00_and_sells_usdt_at_23_20_tehran() -> N
     convert_at = guard.usdt_convert_at()
 
     # then
-    assert flatten_at == utc("2026-10-23T19:30:00Z")
-    assert convert_at == utc("2026-10-23T19:50:00Z")
-    assert guard.halted(utc("2026-10-23T19:29:59Z")) is None
+    assert flatten_at == utc("2026-10-26T19:30:00Z")
+    assert convert_at == utc("2026-10-26T19:50:00Z")
+    assert guard.halted(utc("2026-10-26T19:29:59Z")) is None
 
 
 def test_live_config_bids_fit_the_funds_without_buying_usdt() -> None:

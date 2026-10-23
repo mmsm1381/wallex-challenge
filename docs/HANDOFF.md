@@ -280,3 +280,18 @@ Not done, and why:
 * `allocation.ranking` now uses the fill count per market of the 60-day study at 1.0% (RESEARCH.md section 3.7).
 * With 6 toman places, PEPETMN replaces DOGETMN. The USDT places keep the same 4 markets.
 * The user asked if Kronos (a candle forecast model) can replace the 0.3% Binance filter. Answer: no. The filter uses the Binance move in the same minute, before Wallex shows it. A model on past candles cannot see that move.
+* Kronos backtest (RESEARCH.md section 3.8): Kronos-mini at each fill of the 60-day study. Its forecast does not tell good fills from bad fills. Its only signal is the recent volatility, and a simple high-low range does better. It was not added to the bot.
+
+## 16. End moved to Monday, and a stuck live position (2026-10-23)
+
+* The challenge now runs until Monday 2026-10-26 23:50 Tehran (20:20 UTC). `config.live.toml` has the new `end_utc`. The bot was restarted at 14:05 UTC.
+* The first live fill (ADATMN, 14:01 UTC, 7.9 ADA at 59,855) found a bug. Wallex took the buy fee in ADA, so the fill event carried 7.88025 ADA.
+* The slot compared 7.88025 with the order size 7.9 and saw a part fill. It then waited for a cancel of the filled order. That cancel gives no event, so the slot never sent an exit.
+* The 14:05 restart dropped the slot state. The 7.88 ADA stay in the wallet without an exit, and the toman places do not fit the free toman. Some toman bids then get HTTP 422.
+* Fix: a fill event has `fee_qty`, the fee in the base coin. The slot counts `qty + fee_qty` as filled.
+* New config section `adopt`: a list of positions that a restart lost. At the start, the live bot adopts at most the free coins of the wallet. It sends an exit at fair value and asks the AI to hold or cut at once. The time limit (15 minutes) counts from the start.
+* An adopted position can carry `entry_fee`, the buy fee in the quote currency. The bot books the part of the adopted quantity. Without it, the trade shows a net that is too high by the buy fee.
+* The user asked the AI to decide on the 7.88 ADA. `config.live.toml` adopts them. Remove the entry after the sale.
+* An adopted position needs `entry_utc`, the time of the buy. The 15-minute limit counts from the buy, so a restart does not move it (user rule).
+* Result: the 15-minute limit sold 7.8 ADA at 59,633 at 14:29 UTC. The bot booked −3,127 toman. With the buy fee of the 7.8 ADA (about 1,170), the real result is about −4,300. 0.08 ADA stays in the wallet (below the 0.1 step). The `adopt` entry is removed.
+* Open: a restart does not keep the state of an open position by itself. Restart only when no slot is in a position, or add the position to `adopt`.

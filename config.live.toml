@@ -54,11 +54,12 @@ flatten_before_usdt_s = 1200.0
 
 [challenge]
 start_equity_tmn = 5000000.0
-# End of the challenge: 2026-10-23 23:50 Tehran = 20:20 UTC.
-# With this end, the bot stops bids and sells all coins from 21:50 Tehran
-# (18:20 UTC), and sells all USDT from 23:00 Tehran (19:30 UTC), 30 minutes
-# before the USDTTMN close at 23:30 Tehran.
-end_utc = "2026-10-23T20:20:00Z"
+# End of the challenge: Monday 2026-10-26 23:50 Tehran = 20:20 UTC. The end
+# moved from 2026-10-23 to 2026-10-26 on 2026-10-23 (the challenge runs
+# until Monday). The schedule of the [limits] section applies on
+# 2026-10-26: stop bids and sell coins at 23:00 Tehran (19:30 UTC), sell
+# USDT from 23:20 Tehran (19:50 UTC).
+end_utc = "2026-10-26T20:20:00Z"
 
 [allocation]
 # Watch all 18 markets. Keep bids on the eligible markets with the most fills
@@ -104,3 +105,9 @@ enabled = true
 supervisor_every_s = 900.0
 # Model calls stop when the cost in the ai_calls table reaches this limit.
 budget_usd = 50.0
+
+[adopt]
+# Positions that a restart lost (HANDOFF section 16). Add one as a
+# [[adopt.positions]] table with market, qty, entry_price, entry_utc (the
+# time of the buy) and entry_fee. The ADATMN position of 2026-10-23 is sold.
+positions = []

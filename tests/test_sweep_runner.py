@@ -2,6 +2,8 @@
 
 import asyncio
 
+import pytest
+
 from sweepbot import config
 from sweepbot import runner as runner_mod
 from sweepbot import store as store_mod
@@ -78,3 +80,113 @@ def test_ai_plan_hold_or_cut_and_trade_log_flow(tmp_path) -> None:
     assert any("BTCTMN: bought" in text for text in texts)
     plans = store.rows("plans", "provider = ?", ("fake",))
     assert plans and plans[0]["accepted"] is True
+
+
+def test_adopted_position_is_sold_after_the_model_says_cut(tmp_path) -> None:
+    """Live 2026-10-23: a restart lost a stuck ADATMN position.
+
+    The config names the position. The wallet holds less than the config
+    quantity, so the bot adopts the wallet quantity. It sends an exit at
+    fair value and asks the model at once (no 5-minute wait). The model
+    says cut, so the bot sells and books the trade.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["premium"]["min_samples"] = 12
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["adopt"]["positions"] = [{"market": "BTCTMN", "qty": 0.00004,
+                                  "entry_price": 21_900_000_000.0,
+                                  "entry_utc": "1970-01-01T00:00:00Z"}]
+    store = store_mod.Store(":memory:")
+    fake = provider.FakeProvider(
+        plans=[schema.Plan(slots=[], reasoning="No bids.")] * 20,
+        hold_or_cut=[schema.HoldOrCut(decision="cut", reason="the user wants it sold")],
+        trade_logs=[schema.TradeLog(text="AI log text.", lesson="Adopt with care.")])
+    holder = {}
+    supervisor = supervisor_mod.Supervisor(
+        cfg, fake, store, equity_fn=lambda now: holder["runner"].bot.equity(now))
+    runner = runner_mod.Runner(cfg, mode="paper", store=store, start_ts=0.0,
+                               supervisor=supervisor, with_twin=False)
+    holder["runner"] = runner
+    runner.broker.balance["BTC"] = 0.00003
+    records = sweep_records(sweep_at=10_000.0, end_s=120.0)
+
+    # when
+    adopted = asyncio.run(runner.adopt_positions(0.0))
+    asyncio.run(drive(runner, records, until=100.0))
+
+    # then
+    assert adopted == [("BTCTMN", 0.00003)]
+    jobs = [job for job, _ in fake.calls]
+    assert "hold_or_cut" in jobs
+    context = dict(fake.calls)["hold_or_cut"]
+    assert context["adopted"] is True
+    trades = store.rows("trades")
+    assert len(trades) == 1 and trades[0]["exit_reason"] == "cut"
+    assert trades[0]["entry_price"] == 21_900_000_000.0
+
+
+def test_no_adoption_when_the_wallet_has_no_coins(tmp_path) -> None:
+    """After the coins are sold, a restart must not adopt them again."""
+    # given
+    cfg = config.load_config(None)
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["adopt"]["positions"] = [{"market": "BTCTMN", "qty": 0.00004,
+                                  "entry_price": 21_900_000_000.0,
+                                  "entry_utc": "1970-01-01T00:00:00Z"}]
+    runner = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                               start_ts=0.0, with_twin=False)
+
+    # when
+    adopted = asyncio.run(runner.adopt_positions(0.0))
+
+    # then
+    assert adopted == []
+    assert "BTCTMN" not in runner.bot.slots or not runner.bot.slots["BTCTMN"].busy()
+
+
+def test_adopted_position_books_its_part_of_the_entry_fee(tmp_path) -> None:
+    """The config gives the buy fee of the full position: 1,000 toman for
+    0.00004 BTC. The wallet holds 0.00003 BTC, so the bot books 750.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["adopt"]["positions"] = [{"market": "BTCTMN", "qty": 0.00004,
+                                  "entry_price": 21_900_000_000.0, "entry_fee": 1000.0,
+                                  "entry_utc": "1970-01-01T00:00:00Z"}]
+    runner = runner_mod.Runner(cfg, mode="paper", store=store_mod.Store(":memory:"),
+                               start_ts=0.0, with_twin=False)
+    runner.broker.balance["BTC"] = 0.00003
+
+    # when
+    asyncio.run(runner.adopt_positions(0.0))
+
+    # then
+    assert runner.bot.slots["BTCTMN"].entry_fees == pytest.approx(750.0)
+
+
+def test_adopted_position_keeps_the_time_limit_of_the_buy(tmp_path) -> None:
+    """The buy was 20 minutes before the restart. The 15-minute limit counts
+    from the buy, so the restart does not move it: the bot sells at once.
+    """
+    # given
+    cfg = config.load_config(None)
+    cfg["premium"]["min_samples"] = 12
+    cfg["bot"]["out_dir"] = str(tmp_path)
+    cfg["adopt"]["positions"] = [{"market": "BTCTMN", "qty": 0.00003,
+                                  "entry_price": 21_900_000_000.0,
+                                  "entry_utc": "1969-12-31T23:40:00Z"}]
+    store = store_mod.Store(":memory:")
+    runner = runner_mod.Runner(cfg, mode="paper", store=store, start_ts=0.0,
+                               with_twin=False)
+    runner.broker.balance["BTC"] = 0.00003
+    records = sweep_records(sweep_at=10_000.0, end_s=30.0)
+
+    # when
+    asyncio.run(runner.adopt_positions(0.0))
+    asyncio.run(drive(runner, records, until=20.0))
+
+    # then
+    trades = store.rows("trades")
+    assert len(trades) == 1 and trades[0]["exit_reason"] == "time"

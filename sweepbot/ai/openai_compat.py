@@ -83,6 +83,8 @@ PLAN_INSTRUCTION = (
     "gives a clear reason.")
 HOLD_OR_CUT_INSTRUCTION = (
     "This position has no exit fill after 5 minutes. Decide hold or cut. "
+    "When adopted is true, the bot bought the position before a restart "
+    "and asks at once. "
     "Cut when fair value or the global price fell since the entry.")
 TRADE_LOG_INSTRUCTION = (
     "Write the decision log entry of this closed trade in 2 to 4 sentences, "

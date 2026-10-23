@@ -70,6 +70,8 @@ PLAN_INSTRUCTION = (
     "Pause or set fx_risk high on a real risk.")
 HOLD_OR_CUT_INSTRUCTION = (
     "This position has no exit fill after 5 minutes. Decide hold or cut. "
+    "When adopted is true, the bot bought the position before a restart "
+    "and asks at once. "
     "Cut when fair value or the global price fell since the entry, "
     "or on news risk.")
 TRADE_LOG_INSTRUCTION = (
