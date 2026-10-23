@@ -24,6 +24,30 @@ def test_load_config_without_file_gives_research_defaults() -> None:
     assert cfg["fees"]["tmn_maker"] == 0.25
 
 
+def test_default_ranking_puts_the_market_with_more_fills_first() -> None:
+    """Two markets qualify for one place: the market with more fills gets it.
+
+    The ranking is the fill count of each market in the 60-day study at a
+    depth of 1.0% with both filters (RESEARCH.md section 3.7).
+    Expected: PEPETMN (80 fills) comes before DOGETMN (25 fills), and all
+    18 markets are in the ranking once.
+    """
+    # given
+    path = None
+
+    # when
+    ranking = config.load_config(path)["allocation"]["ranking"]
+
+    # then
+    assert [m for m in ranking if m.endswith("TMN")] == [
+        "ADATMN", "PEPETMN", "SHIBTMN", "TRXTMN", "ETHTMN", "BTCTMN",
+        "DOGETMN", "XRPTMN", "SOLTMN", "BNBTMN"]
+    assert [m for m in ranking if m.endswith("USDT")] == [
+        "PEPEUSDT", "ETHUSDT", "ADAUSDT", "DOGEUSDT", "BTCUSDT", "XRPUSDT",
+        "SOLUSDT", "BNBUSDT"]
+    assert sorted(ranking) == sorted(set(ranking)) and len(ranking) == 18
+
+
 def test_load_config_with_partial_file_merges_the_override(tmp_path) -> None:
     """A TOML file changes only the keys that it names."""
     # given

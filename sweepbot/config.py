@@ -69,14 +69,30 @@ DEFAULTS: dict = lag_config._merge(lag_config.DEFAULTS, {
               "cut_slippage_pct": 2.0},
     "paper": {"latency_s": 0.5},
     # Allocation of the bids over all markets (DESIGN section 5.1). The
-    # ranking is the per-market result of the 60-day candle study at 1.3%
-    # with both filters (RESEARCH.md section 3.2), best first. The markets
-    # without fills in the study come last.
+    # ranking is the fill count per market in the 60-day candle study at
+    # 1.0% with both filters (RESEARCH.md section 3.7), most fills first.
+    # When two markets qualify for one place, the market with more fills
+    # gets it. Equal counts use the net result. The fill counts are in
+    # the comments.
     "allocation": {"enabled": False,
-                   "ranking": ["ADATMN", "BTCTMN", "ETHUSDT", "TRXTMN", "ETHTMN",
-                               "PEPEUSDT", "SHIBTMN", "ADAUSDT", "DOGEUSDT", "DOGETMN",
-                               "XRPTMN", "PEPETMN", "XRPUSDT", "SOLTMN", "BNBTMN",
-                               "BTCUSDT", "SOLUSDT", "BNBUSDT"],
+                   "ranking": ["ADATMN",  # 232
+                               "PEPETMN",  # 80
+                               "SHIBTMN",  # 59
+                               "PEPEUSDT",  # 55
+                               "TRXTMN",  # 45
+                               "ETHTMN",  # 38
+                               "BTCTMN",  # 34
+                               "ETHUSDT",  # 27
+                               "DOGETMN",  # 25
+                               "XRPTMN",  # 12
+                               "ADAUSDT",  # 11
+                               "DOGEUSDT",  # 10
+                               "SOLTMN",  # 9
+                               "BTCUSDT",  # 6, net +34k
+                               "XRPUSDT",  # 6, net +17k
+                               "BNBTMN",  # 5
+                               "SOLUSDT",  # 1
+                               "BNBUSDT"],  # 0
                    "tmn_slots": 3, "usdt_slots": 2, "switch_min_s": 60.0,
                    "log_every_s": 60.0},
     # USDT to buy at the start, as a part of the start equity. 0 turns the

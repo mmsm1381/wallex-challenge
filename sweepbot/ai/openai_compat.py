@@ -43,7 +43,8 @@ How the bot works:
 - It watches 18 Wallex markets and rests deep buy orders (bids) below the
   fair value of a coin. Fair value comes from global prices and the USDT rate.
 - The bot itself chooses the markets for its bids: up to 6 toman places and
-  4 USDT places, by a ranking from a 60-day backtest and by live conditions.
+  4 USDT places, by live conditions and by a ranking from a 60-day backtest
+  (the market with more fills first).
 - When a big sell sweep hits the book, a bid fills at a low price. The bot
   then sells at fair value.
 

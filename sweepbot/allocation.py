@@ -9,9 +9,10 @@ the markets that get the bids now:
 1. A slot that holds coins (a position or an exit order) or a bid that is
    being cancelled keeps its funds. It uses one place of its quote.
 2. The other places go to the eligible markets in the order of
-   `allocation.ranking` (the 60-day backtest, best first). A market is
-   eligible when it has a fair value, a narrow spread, no filter and no
-   cooldown.
+   `allocation.ranking` (the fill count in the 60-day backtest, most
+   fills first). So when two markets qualify for one place, the market
+   with more fills gets it. A market is eligible when it has a fair value,
+   a narrow spread, no filter and no cooldown.
 3. A live bid that is younger than `switch_min_s` keeps its place, so that
    a better market does not make the bot cancel and send bids all the time.
 4. Each eligible market without a place is "skipped: no funds".

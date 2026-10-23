@@ -61,11 +61,11 @@ start_equity_tmn = 5000000.0
 end_utc = "2026-10-23T20:20:00Z"
 
 [allocation]
-# Watch all 18 markets. Keep bids on the best eligible markets of the 60-day
-# ranking (sweepbot/config.py): 6 toman places (6 x 475,000 of the 3M toman)
-# and 4 USDT places (4 x 475,000 of the 2M toman in USDT that the account
-# already holds; no USDT is bought). An eligible market without a place is
-# logged as "qualifies, but no funds".
+# Watch all 18 markets. Keep bids on the eligible markets with the most fills
+# in the 60-day study (ranking in sweepbot/config.py, RESEARCH.md 3.7): 6
+# toman places (6 x 475,000 of the 3M toman) and 4 USDT places (4 x 475,000 of
+# the 2M toman in USDT that the account already holds; no USDT is bought). An
+# eligible market without a place is logged as "qualifies, but no funds".
 enabled = true
 tmn_slots = 6
 usdt_slots = 4

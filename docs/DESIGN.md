@@ -114,7 +114,7 @@ Rules:
 The bot watches all 18 markets. The funds allow only a few resting bids, and a bid must rest before a sweep comes. With `allocation.enabled`, `sweepbot/allocation.py` chooses the bid markets on every tick, when no AI plan exists (the twin always uses it):
 
 1. A slot with coins, an exit order, or a bid that is being cancelled keeps its place.
-2. The other places go to the eligible markets in the order of `allocation.ranking` (the per-market result of the 60-day study). A market is eligible when the Wallex and global feeds are fresh, it has a fair value, its spread is at most `filters.max_spread_pct`, no filter is on, USDT is bought (USDT markets), and it has no cooldown.
+2. The other places go to the eligible markets in the order of `allocation.ranking`: the market with more fills in the 60-day study at 1.0% comes first (RESEARCH.md section 3.7). So when two markets qualify for one place, the market with more fills gets it. A market is eligible when the Wallex and global feeds are fresh, it has a fair value, its spread is at most `filters.max_spread_pct`, no filter is on, USDT is bought (USDT markets), and it has no cooldown.
 3. A bid younger than `allocation.switch_min_s` (60 s) keeps its place against a better market.
 4. There are `allocation.tmn_slots` toman places and `allocation.usdt_slots` USDT places. An eligible market without a place gets a decision log row "qualifies, but no funds" (at most once per `allocation.log_every_s` per market).
 

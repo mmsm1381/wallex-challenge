@@ -175,6 +175,48 @@ Conclusion: keep the Wallex USDTTMN rate. A rate from Bitpin, alone or in a mean
 * Other bots can rest bids at the same price before us. Then they fill first. The candle study cannot see the queue.
 * The live tool keeps recording. Each new day of raw data makes the order-book check stronger.
 
+### 3.7 Market priority by fill count (2026-10-23)
+
+Question: two markets qualify for one place, and the funds allow only one bid. Which market gets the bid?
+
+Rule (the user's choice): the market with more fills in the backtest gets the place. Equal counts use the net result.
+
+Script: `sweep_study.py DATA_DIR 1.0 1.0`, depth 1.0% (the live depth), both filters, 61 days.
+
+| Market | Fills | Win | Median | Net (1M per trade) |
+|---|---|---|---|---|
+| ADATMN | 232 | 72% | +0.34% | +354k |
+| PEPETMN | 80 | 56% | +0.17% | +35k |
+| SHIBTMN | 59 | 71% | +0.33% | +100k |
+| PEPEUSDT | 55 | 73% | +0.56% | +214k |
+| TRXTMN | 45 | 89% | +0.44% | +149k |
+| ETHTMN | 38 | 92% | +0.39% | +108k |
+| BTCTMN | 34 | 91% | +0.45% | +121k |
+| ETHUSDT | 27 | 89% | +0.72% | +158k |
+| DOGETMN | 25 | 84% | +0.33% | +71k |
+| XRPTMN | 12 | 92% | +0.33% | +44k |
+| ADAUSDT | 11 | 91% | +0.78% | +81k |
+| DOGEUSDT | 10 | 70% | +0.95% | +64k |
+| SOLTMN | 9 | 100% | +0.29% | +26k |
+| BTCUSDT | 6 | 83% | +0.61% | +34k |
+| XRPUSDT | 6 | 67% | +0.46% | +17k |
+| BNBTMN | 5 | 100% | +0.15% | +14k |
+| SOLUSDT | 1 | 100% | +1.10% | +11k |
+| BNBUSDT | 0 | - | - | - |
+
+`allocation.ranking` in `sweepbot/config.py` uses this order.
+
+Effect with the live places (6 toman, 4 USDT) when all markets qualify:
+
+* Toman: PEPETMN replaces DOGETMN. The 6 toman markets had 488 fills in 61 days instead of 433 (about +0.9 a day). Their net was +867k instead of +903k (about -0.6k a day).
+* USDT: the same 4 markets as before (PEPEUSDT, ETHUSDT, ADAUSDT, DOGEUSDT). Only the order changes.
+* The order also decides which market keeps a bid when some markets do not qualify (wide spread, filter, cooldown).
+
+Limits:
+
+* PEPETMN has the weakest quality of the top markets (56% win, median +0.17%). More fills do not mean more profit.
+* The counts are in-sample. The study counts each market alone. It does not simulate the places.
+
 ## 4. Market facts
 
 * Wallex USDTTMN closes every night from 23:30 to 11:30 Tehran time (20:00 to 08:00 UTC). On some days it opens earlier (05:30 UTC on 2026-10-01). During the close, coin TMN markets keep trading.

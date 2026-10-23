@@ -273,3 +273,10 @@ Not done, and why:
 * Milestone 2: the cloud container cannot reach `api.wallex.ir` (proxy answer 403). The Wallex API documentation was not read, so `WallexBroker` is not written. AGENTS.md forbids guessed endpoints.
 * Task 3.2 manual call: no `ANTHROPIC_API_KEY` in the session.
 * The USDT conversion at the end of the challenge is built (`sweepbot/endgame.py`). The coins are sold before it.
+
+## 15. Market priority by fill count (2026-10-23)
+
+* The user asked for a priority rule: when two markets qualify for one place, the market with more fills gets the bid.
+* `allocation.ranking` now uses the fill count per market of the 60-day study at 1.0% (RESEARCH.md section 3.7).
+* With 6 toman places, PEPETMN replaces DOGETMN. The USDT places keep the same 4 markets.
+* The user asked if Kronos (a candle forecast model) can replace the 0.3% Binance filter. Answer: no. The filter uses the Binance move in the same minute, before Wallex shows it. A model on past candles cannot see that move.
